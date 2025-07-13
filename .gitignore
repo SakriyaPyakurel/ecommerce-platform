@@ -5,7 +5,8 @@ backend/venv/
 
 .env
 
-backend/alembic/versions/
+backend/alembic/
+.alembic.ini
 
 
 frontend/products/*
