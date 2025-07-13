@@ -1,13 +1,13 @@
-**/__pycache__/
-*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
 
 backend/venv/
 
 .env
 
 backend/alembic/
-.alembic.ini
-
+alembic.ini
 
 frontend/products/*
 frontend/userprofiles/*
