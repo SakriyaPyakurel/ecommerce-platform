@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>All in One Store - Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inria+Sans&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inria Sans', sans-serif;
+    }
+  </style>
+  <script>
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    if (!user) {
+      location.replace("login.html");
+    }
+
+   
+    window.addEventListener("pageshow", function (event) {
+      if (event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+        window.location.reload();
+      }
+    });
+
+    fetch("http://127.0.0.1:8000/profile", {
+      method: "POST",
+      credentials: "include"
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== "success") {
+          localStorage.clear();
+          location.replace("login.html");
+        }
+      })
+      .catch(() => {
+        localStorage.clear();
+        location.replace("login.html");
+      });
+  </script>
+</head>
+
+<body id="protected-content" class="bg-white hidden">
+  <div class="min-h-screen flex flex-col">
+    <div id="navbar-container"></div>
+
+    <main class="flex-grow">
+      <section class="text-center my-6 px-4">
+        <h2 class="text-2xl font-bold mb-4">Featured Products</h2>
+        <div class="flex flex-wrap justify-center items-center gap-2 max-w-md mx-auto">
+          <input id="search-input" type="text" placeholder="Search for products"
+            class="flex-grow min-w-[200px] px-4 py-2 rounded-full border border-gray-300 focus:outline-none text-sm" />
+          <button class="bg-[#31CC9D] p-3 rounded-full" onclick="searchProducts()">
+            <i class="fas fa-search text-white"></i>
+          </button>
+        </div>
+      </section>
+       <div id="product-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-4">
+    </div>
+    </main>
+
+    <footer class="bg-[#5861E6] text-white py-6">
+      <div class="flex flex-col items-center justify-center space-y-4 px-4 text-center">
+        <div class="flex space-x-4 text-xl">
+          <a href="#" aria-label="Facebook" class="hover:text-gray-200">
+            <i class="fab fa-facebook"></i>
+          </a>
+          <a href="#" aria-label="Instagram" class="hover:text-gray-200">
+            <i class="fab fa-instagram"></i>
+          </a>
+          <a href="#" aria-label="X/Twitter" class="hover:text-gray-200">
+            <i class="fab fa-x-twitter"></i>
+          </a>
+        </div>
+        <p class="text-sm">&copy; All rights reserved</p>
+      </div>
+    </footer>
+  </div>
+
+  <div id="logout-popup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white text-black px-6 py-4 rounded-xl shadow-lg text-center max-w-sm">
+      <p class="text-sm">Want to logout?</p>
+      <button onclick="logout()" class="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Yes</button>
+      <button onclick="document.getElementById('logout-popup').classList.add('hidden')"
+        class="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">No</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const container = document.getElementById("navbar-container");
+      const res = await fetch("navbar.html");
+      const html = await res.text();
+      container.innerHTML = html;
+      
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user.image) {
+        document.getElementById("profimg")?.setAttribute("src", user.image);
+        document.getElementById("profimg").setAttribute("title",user.type+":"+user.username)
+        if (user.type === "user") {
+          document.getElementById("dashboard")?.classList.add("hidden");
+          // document.getElementById("newprod")?.classList.add("hidden");
+        } else {
+          document.getElementById("orders")?.classList.add("hidden");
+        }
+      }
+
+      document.getElementById("protected-content").style.display = "block";
+
+      document.addEventListener("click", (e) => {
+        const button = document.getElementById("dropdownButton");
+        const menu = document.getElementById("dropdownMenu");
+        if (button && button.contains(e.target)) {
+          menu?.classList.toggle("hidden");
+        } else if (menu && !menu.contains(e.target)) {
+          menu.classList.add("hidden");
+        }
+      });
+      await fetchAndDisplayProducts();
+    });
+    async function fetchAndDisplayProducts(query = "") {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/products");
+    const data = await res.json();
+
+    const container = document.getElementById("product-container");
+    container.innerHTML = "";
+
+    const filtered = data.products.filter(p =>
+      p.name.toLowerCase().includes(query.toLowerCase()) ||
+      p.description.toLowerCase().includes(query.toLowerCase())
+    );
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<p class="col-span-full text-center text-gray-600">No products found.</p>`;
+      return;
+    }
+
+    filtered.forEach(product => {
+      const card = document.createElement("div");
+      card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
+
+      card.innerHTML = `
+        <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded-md mb-3 overflow-hidden">
+  <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" class="max-h-full max-w-full object-contain" />
+</div>
+        <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+          <h3 class="font-bold text-sm">${product.name}</h3>
+          <p class="text-xs">${product.description}</p>
+          <p class="text-sm mt-1">Rs. ${product.price}</p>
+          <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
+          <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full">
+            <i class="fa fa-shopping-cart text-white"></i>
+          </button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Error fetching products:", err);
+  }
+}
+
+  function searchProducts() {
+      const query = document.getElementById("search-input").value;
+      fetchAndDisplayProducts(query);
+    }
+
+    async function logout() {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/logout", {
+          method: "POST",
+          credentials: "include"
+        });
+        const result = await res.json();
+        if (result.status === "success") {
+          localStorage.removeItem("user");
+          location.replace("login.html");
+        } else {
+          alert("Logout failed. Try again.");
+        }
+      } catch (err) {
+        console.error("Logout error:", err);
+        alert("Error logging out.");
+      }
+    }
+  </script>
+</body>
+</html>

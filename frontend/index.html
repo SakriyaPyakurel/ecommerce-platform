@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All in One Store</title>
+
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+
+  <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inria Sans', sans-serif;
+    }
+  </style>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="bg-white">
+   <div class="min-h-screen flex flex-col">
+  <header class="bg-[#5861E6] text-white flex items-center justify-between px-6 py-4">
+    <div class="flex items-center space-x-2">
+      <img src="assets\logo.jpg" alt="Logo" class="h-10 w-10 rounded-full" />
+    </div>
+    <nav class="space-x-6">
+      <a href="login.html" class="hover:underline">LOGIN</a>
+      <a href="signup.html" class="hover:underline">SIGNUP</a>
+    </nav>
+  </header>
+
+<section class="flex flex-col md:flex-row items-stretch justify-center px-6 mt-8 max-w-6xl mx-auto w-full">
+
+
+  <div class="w-full md:w-1/2 h-72 md:h-auto">
+    <img src="assets/indeximg.png" alt="Banner" class="w-full h-full object-cover rounded-t-[40px] md:rounded-t-none md:rounded-l-[40px]" />
+  </div>
+
+
+  <div class="w-full md:w-1/2 bg-[#5861E6] text-white px-6 py-8 flex flex-col justify-center h-72 md:h-auto rounded-b-[40px] md:rounded-b-none md:rounded-r-[40px] shadow-lg">
+    <h1 class="text-2xl font-bold mb-4">Welcome to All in one Store</h1>
+    <a href="admin-login.html" class="inline-block px-4 py-2 text-sm font-semibold text-white bg-[#31CC9D] hover:bg-[#29b78b] rounded-full w-fit">
+      Admin-Login
+    </a>
+  </div>
+
+</section>
+
+  <main class="flex-grow">
+<section class="text-center my-10 px-4">
+  <h2 class="text-2xl font-bold mb-6">Our Products</h2>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+
+    <div class="bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow">
+      <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
+        <i class="fa-regular fa-image text-3xl text-gray-400"></i>
+      </div>
+      <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+        <h3 class="font-bold text-sm">Product 1</h3>
+        <p class="text-xs font-normal">Short description</p>
+        <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white">
+          <i class="fa fa-shopping-cart text-white"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow">
+      <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
+        <i class="fa-regular fa-image text-3xl text-gray-400"></i>
+      </div>
+      <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+        <h3 class="font-bold text-sm">Product 2</h3>
+        <p class="text-xs font-normal">Short description</p>
+        <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white">
+          <i class="fa fa-shopping-cart text-white"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow">
+      <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
+        <i class="fa-regular fa-image text-3xl text-gray-400"></i>
+      </div>
+      <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+        <h3 class="font-bold text-sm">Product 3</h3>
+        <p class="text-xs font-normal">Short description</p>
+        <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white">
+          <i class="fa fa-shopping-cart text-white"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="bg-[#5861E6] text-white py-6">
+      <div class="flex flex-col items-center justify-center space-y-4 px-4 text-center">
+        <div class="flex space-x-4 text-xl">
+          <a href="#" aria-label="Facebook" class="hover:text-gray-200">
+            <i class="fab fa-facebook"></i>
+          </a>
+          <a href="#" aria-label="Instagram" class="hover:text-gray-200">
+            <i class="fab fa-instagram"></i>
+          </a>
+          <a href="#" aria-label="X/Twitter" class="hover:text-gray-200">
+            <i class="fab fa-x-twitter"></i>
+          </a>
+        </div>
+        <p class="text-sm">
+          &copy; <i class="fa-regular fa-copyright text-white"></i> All rights reserved
+        </p>
+      </div>
+    </footer>
+
+</div>
+
+</body>
+</html>

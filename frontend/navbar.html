@@ -1,0 +1,49 @@
+<header class="bg-[#5861E6] text-white flex flex-wrap items-center justify-between px-4 py-3">
+  <div class="flex items-center gap-3">
+    <div class="flex items-center space-x-2">
+      <img title="A-one store" src="assets/logo.jpg" alt="Logo" class="h-10 w-10 rounded-full object-cover" />
+    </div>
+  </div>
+  <div class="relative mt-3 sm:mt-0">
+    <button id="dropdownButton" class="flex items-center gap-2 focus:outline-none">
+      <img id="profimg" class="h-8 w-8 rounded-full object-cover cursor-pointer" />
+      <i class="fa fa-chevron-down text-sm"></i>
+    </button>
+    <div id="dropdownMenu" class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg hidden z-50">
+      <a href="home.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Home</a>
+      <a href="profile.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Profile</a>
+      <a id="orders" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">My Orders</a>
+      <a id="dashboard" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">dashboard</a>
+      <a id="newprod" href="add_product.html" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">+ New product</a>
+      <button class="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
+              onclick="document.getElementById('dropdownMenu').classList.add('hidden'); document.getElementById('logout-popup').classList.remove('hidden')">
+        logout
+      </button>
+    </div>
+  </div>
+</header>
+<script>
+  function showLogoutPopup() {
+    document.getElementById("logout-popup").classList.remove("hidden");
+  }
+
+  async function logout() {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      const data = await res.json();
+      if (data.status === "success") {
+        localStorage.removeItem("user");
+        window.location.href = "login.html";
+      } else {
+        alert("Logout failed: " + (data.message || "Unexpected error."));
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+      alert("Failed to logout. Check your connection.");
+    }
+  }
+</script>
