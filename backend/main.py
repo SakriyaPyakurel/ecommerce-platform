@@ -19,7 +19,7 @@ serializer = URLSafeSerializer(SECRET_KEY)
 
 app = FastAPI()
 SAVE_DIR = Path("frontend/product")
-SAVE_DIR.mkdir(parents=True, exist_ok=True)
+# SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
