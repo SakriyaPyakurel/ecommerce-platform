@@ -91,7 +91,18 @@
         class="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">No</button>
     </div>
   </div>
-
+<div id="image-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center hidden">
+  <div class="relative w-full max-w-md mx-auto">
+    <button onclick="hideImageModal()" 
+            class="absolute -top-4 -right-4 bg-white rounded-full p-1.5 shadow-lg hover:bg-red-500 hover:text-white text-xl">
+      <i class="fas fa-times"></i>
+    </button>
+    <img id="modal-image" 
+         src="" 
+         alt="Product" 
+         class="w-full max-h-[70vh] object-contain rounded-lg border-4 border-white shadow-lg bg-white p-2" />
+  </div>
+</div>
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const container = document.getElementById("navbar-container");
@@ -148,14 +159,14 @@
 
       card.innerHTML = `
         <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded-md mb-3 overflow-hidden">
-  <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" class="max-h-full max-w-full object-contain" />
+  <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" onclick="showImageModal('${product.media}')" class="max-h-full max-w-full object-contain" />
 </div>
         <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
           <h3 class="font-bold text-sm">${product.name}</h3>
           <p class="text-xs">${product.description}</p>
           <p class="text-sm mt-1">Rs. ${product.price}</p>
           <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
-          <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full">
+          <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
             <i class="fa fa-shopping-cart text-white"></i>
           </button>
         </div>
@@ -190,6 +201,16 @@
         alert("Error logging out.");
       }
     }
+    function showImageModal(src) {
+  const modal = document.getElementById("image-modal");
+  const modalImg = document.getElementById("modal-image");
+  modalImg.src = src;
+  modal.classList.remove("hidden");
+}
+
+function hideImageModal() {
+  document.getElementById("image-modal").classList.add("hidden");
+}
   </script>
 </body>
 </html>
