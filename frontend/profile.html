@@ -124,6 +124,7 @@ checkAuth();
     if (user.image) {
       document.getElementById("profimg").src = user.image;
       document.getElementById("dashboard").classList.toggle("hidden", user.type === "user");
+      document.getElementById("addadmin").classList.toggle("hidden", user.type === "user");
       document.getElementById("newprod").classList.toggle("hidden", user.type === "user");
       document.getElementById("orders").classList.toggle("hidden", user.type !== "user");
     }

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+  <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
+    <h2 class="text-2xl font-bold text-center text-[#5861E6] mb-6">Add New Admin</h2>
+
+    <form id="addAdminForm" class="space-y-4">
+      <div>
+        <label for="username" class="block text-gray-700 font-semibold">User Name</label>
+        <input type="text" id="username" name="username" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#5861E6]" required />
+      </div>
+
+      <div>
+        <label for="email" class="block text-gray-700 font-semibold">Email</label>
+        <input type="email" id="email" name="email" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#5861E6]" required />
+      </div>
+
+      <div>
+        <label for="password" class="block text-gray-700 font-semibold">Password</label>
+        <input type="password" id="password" name="password" class="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#5861E6]" required />
+      </div>
+
+      <button type="submit" class="w-full bg-[#31CC9D] hover:bg-[#29b78b] text-white font-semibold py-2 px-4 rounded-md">
+        Create Admin
+      </button>
+    </form>
+
+    <p id="modal" class="mt-4 text-center text-sm hidden px-4 py-2 rounded-md"></p>
+  </div>
+
+  <script>
+    document.getElementById("addAdminForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      const payload = { username, email, password };
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/add_admin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          showSuccessModal(result.message);
+          document.getElementById("addAdminForm").reset();
+        } else {
+          showErrorModal(result.message);
+        }
+
+      } catch (error) {
+        console.error("Error:", error);
+        showErrorModal("Something went wrong. Please try again.");
+      }
+    });
+
+    function showSuccessModal(message) {
+      const modal = document.getElementById("modal");
+      modal.classList.remove("hidden", "bg-red-100", "text-red-800");
+      modal.classList.add("bg-green-100", "text-green-800");
+      modal.innerText = message;
+    }
+
+    function showErrorModal(message) {
+      const modal = document.getElementById("modal");
+      modal.classList.remove("hidden", "bg-green-100", "text-green-800");
+      modal.classList.add("bg-red-100", "text-red-800");
+      modal.innerText = message;
+    }
+  </script>
+
+</body>
+</html>

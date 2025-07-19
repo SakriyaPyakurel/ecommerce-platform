@@ -128,6 +128,35 @@ def login(user: credentials):
             max_age=3600
         )
         return response
+    
+@app.post("/add_admin")
+def add_admin(user: credentials):
+    if not is_email_valid(user.email):
+        return {"status": "error", "message": "Invalid email format"}
+    if not is_password_valid(user.password):
+        return {"status": "error", "message": "Weak password"}
+
+    with Session(engine) as session:
+        if session.exec(select(admin).where(admin.email == user.email)).first():
+            return {"status": "error", "message": "Email already exists"}
+
+        new_aid = random.randint(100, 10000)
+        while session.exec(select(admin).where(admin.a_id == new_aid)).first():
+            new_aid = random.randint(100, 10000)
+
+        new_admin = admin(
+            a_id=new_aid,
+            username=user.username,
+            email=user.email,
+            password=hash_password(user.password),
+            image="assets/default_admin.png"
+        )
+        session.add(new_admin)
+        session.commit()
+        session.refresh(new_admin)
+
+        return {"status": "success", "message": "Admin registered successfully"}
+
 
 @app.post("/profile")
 def get_profile(current_info=Depends(get_current_user)):
@@ -223,8 +252,8 @@ async def add_product(
     quantity: int = Form(...),
     current_user=Depends(get_current_user)
 ):
-    # if current_user["type"] == "user":
-    #     raise HTTPException(status_code=403, detail="Not authorized to add products")
+    if current_user["type"] == "user":
+        raise HTTPException(status_code=403, detail="Not authorized to add products")
     new_pid = random.randint(100, 100000)
     with Session(engine) as session:
       while session.exec(select(product).where(product.p_id == new_pid)).first():
