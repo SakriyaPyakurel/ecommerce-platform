@@ -115,20 +115,25 @@ async function checkAuth() {
   }
 }
 checkAuth();
-
-(async () => {
-  async function loadNavbar() {
-    const res = await fetch("navbar.html");
-    document.getElementById("navbar-container").innerHTML = await res.text();
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (user.image) {
-      document.getElementById("profimg").src = user.image;
-      document.getElementById("dashboard").classList.toggle("hidden", user.type === "user");
-      document.getElementById("addadmin").classList.toggle("hidden", user.type === "user");
-      document.getElementById("newprod").classList.toggle("hidden", user.type === "user");
-      document.getElementById("orders").classList.toggle("hidden", user.type !== "user");
-    }
-    
+async function loadNavbar() {
+   const container = document.getElementById("navbar-container");
+      const res = await fetch("navbar.html");
+      const html = await res.text();
+      container.innerHTML = html;
+      
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user.image) {
+        document.getElementById("profimg")?.setAttribute("src", user.image);
+        document.getElementById("profimg").setAttribute("title",user.type+":"+user.username)
+        if (user.type === "user") {
+          document.getElementById("dashboard")?.classList.add("hidden");
+          document.getElementById("newprod")?.classList.add("hidden");
+          document.getElementById("addadmin")?.classList.add("hidden");
+        } else {
+          document.getElementById("orders")?.classList.add("hidden");
+        }
+      }
+}
    
     document.addEventListener("click", (e) => {
       const button = document.getElementById("dropdownButton");
@@ -139,7 +144,7 @@ checkAuth();
         menu.classList.add("hidden");
       }
     });
-  }
+
 
   async function fetchProfileData() {
     const res = await fetch("http://127.0.0.1:8000/profile", { method: "POST", credentials: "include" });
@@ -204,7 +209,6 @@ checkAuth();
 
     document.getElementById("edit-profile-form").addEventListener("submit", verifyAndUpdateProfile);
   });
-})();
 
 window.logout = async function () {
   try {
@@ -215,7 +219,7 @@ window.logout = async function () {
     const data = await res.json();
     if (data.status === "success") {
       localStorage.removeItem("user");
-      window.location.href = "login.html";
+      window.location.href = "index.html";
     } else {
       alert("Logout failed: " + (data.message || "Unknown error"));
     }

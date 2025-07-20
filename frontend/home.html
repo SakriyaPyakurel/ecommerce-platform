@@ -117,6 +117,7 @@
         if (user.type === "user") {
           document.getElementById("dashboard")?.classList.add("hidden");
           document.getElementById("newprod")?.classList.add("hidden");
+          document.getElementById("addadmin")?.classList.add("hidden");
         } else {
           document.getElementById("orders")?.classList.add("hidden");
         }
@@ -153,24 +154,41 @@
       return;
     }
 
-    filtered.forEach(product => {
-      const card = document.createElement("div");
-      card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
+  filtered.forEach(product => {
+  const card = document.createElement("div");
+  card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
 
-      card.innerHTML = `
-        <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded-md mb-3 overflow-hidden">
-  <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" onclick="showImageModal('${product.media}')" class="max-h-full max-w-full object-contain" />
-</div>
-        <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
-          <h3 class="font-bold text-sm">${product.name}</h3>
-          <p class="text-xs">${product.description}</p>
-          <p class="text-sm mt-1">Rs. ${product.price}</p>
-          <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
-          <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
-            <i class="fa fa-shopping-cart text-white"></i>
-          </button>
-        </div>
-      `;
+  const isAdmin = user?.type === "admin";
+
+  card.innerHTML = `
+    <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded-md mb-3 overflow-hidden">
+      <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" onclick="showImageModal('${product.media}')" class="max-h-full max-w-full object-contain" />
+    </div>
+    <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+      <h3 class="font-bold text-sm">${product.name}</h3>
+      <p class="text-xs">${product.description}</p>
+      <p class="text-sm mt-1">Rs. ${product.price}</p>
+      <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
+      ${!isAdmin ? `<button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
+        <i class="fa fa-shopping-cart text-white"></i>
+      </button>`: ""}
+      
+
+      ${isAdmin ? `
+  <div class="mt-2 flex justify-center gap-2">
+    <button onclick="editProduct('${product.p_id}')" class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 px-3 py-1 text-xs rounded-full text-white" title="Edit Product">
+      <i class="fas fa-edit"></i>
+    </button>
+    <button onclick="deleteProduct('${product.p_id}')" class="flex items-center gap-1 bg-red-500 hover:bg-red-600 px-3 py-1 text-xs rounded-full text-white" title="Delete Product">
+      <i class="fas fa-trash"></i>
+    </button>
+    <button onclick="addstock('${product.p_id}')" class="flex items-center gap-1 bg-green-500 hover:bg-green-600 px-3 py-1 text-medium rounded-full text-white" title="Add Stock">
+      +
+    </button>
+  </div>
+` : ""}
+    </div>
+  `;
       container.appendChild(card);
     });
   } catch (err) {
@@ -192,7 +210,7 @@
         const result = await res.json();
         if (result.status === "success") {
           localStorage.removeItem("user");
-          location.replace("login.html");
+          location.replace("index.html");
         } else {
           alert("Logout failed. Try again.");
         }
