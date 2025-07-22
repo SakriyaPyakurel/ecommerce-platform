@@ -103,7 +103,153 @@
          class="w-full max-h-[70vh] object-contain rounded-lg border-4 border-white shadow-lg bg-white p-2" />
   </div>
 </div>
+ <div id="cart-bar" class="fixed bottom-0 left-0 right-0 bg-white shadow border-t flex overflow-x-auto px-4 py-2 gap-4 z-40"></div>
+
+<div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-50">
+  <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+              bg-white rounded-lg w-full max-w-lg p-6 relative">
+    <button onclick="toggleCartModal(false)" class="absolute top-2 right-2 text-gray-600 hover:text-red-500">
+      <i class="fas fa-times"></i>
+    </button>
+    <h2 class="text-lg font-semibold mb-4">Your Cart</h2>
+    <div id="cart-details" class="space-y-4 max-h-[300px] overflow-y-auto"></div>
+ 
+    <div class="mt-4 flex flex-col items-end space-y-3">
+      <div class="font-bold text-lg">
+        Total: Rs. <span id="cart-total">0</span>
+      </div>
+      <button id="buy-button"
+              onclick="handleBuyNow()"
+              class="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded hidden">
+        Buy Now
+      </button>
+    </div>
+  </div>
+</div>
+
   <script>
+     let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    function saveCart() {
+      localStorage.setItem("cart", JSON.stringify(cart));
+      renderCartBar();
+    }
+
+    function addToCart(id,name,price,media) {
+      const i = cart.findIndex(x=>x.id===id);
+      if (i>=0) cart[i].qty++;
+      else cart.push({id,name,price,media,qty:1});
+      saveCart();
+    }
+
+    function updateQty(idx,delta) {
+      cart[idx].qty += delta;
+      if (cart[idx].qty < 1) cart.splice(idx,1);
+      saveCart();
+      renderCartModal();
+    }
+
+    function removeFromCart(idx) {
+      cart.splice(idx,1);
+      saveCart();
+      renderCartModal();
+    }
+
+    function toggleCartModal(show) {
+      const modal = document.getElementById("cart-modal");
+      modal.classList.toggle("hidden", !show);
+      if (show) renderCartModal();
+    }
+
+    function renderCartBar() {
+      const bar = document.getElementById("cart-bar");
+      bar.innerHTML = "";
+      cart.forEach((item, idx) => {
+        const div = document.createElement("div");
+        div.className = "flex flex-col items-center";
+        div.innerHTML = `
+          <img src="${item.media}" class="w-12 h-12 object-cover rounded" />
+          <div class="text-xs">${item.qty}</div>
+          <div class="flex gap-1 mt-1">
+            <button onclick="updateQty(${idx},1)" class="text-green-600"><i class="fas fa-plus"></i></button>
+            <button onclick="removeFromCart(${idx})" class="text-red-600"><i class="fas fa-trash"></i></button>
+          </div>
+        `;
+        bar.appendChild(div);
+      });
+      if (cart.length) {
+        const btn = document.createElement("button");
+        btn.className = "ml-auto bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700";
+        btn.innerText = "View Cart";
+        btn.onclick = () => toggleCartModal(true);
+        bar.appendChild(btn);
+      }
+    }
+
+    function renderCartModal() {
+      const details = document.getElementById("cart-details"),
+            totalSpan = document.getElementById("cart-total");
+      let total = 0;
+      details.innerHTML = "";
+      cart.forEach((item, idx) => {
+        total += item.price * item.qty;
+        const div = document.createElement("div");
+        div.className = "flex items-center justify-between border-b pb-2";
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            <img src="${item.media}" class="w-12 h-12 object-cover rounded" />
+            <div>
+              <div class="font-semibold">${item.name}</div>
+              <div class="text-sm">Rs. ${item.price}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="updateQty(${idx},-1)" class="bg-gray-200 px-2 rounded">-</button>
+            <span>${item.qty}</span>
+            <button onclick="updateQty(${idx},1)" class="bg-gray-200 px-2 rounded">+</button>
+            <button onclick="removeFromCart(${idx})" class="text-red-500"><i class="fas fa-trash"></i></button>
+          </div>
+        `;
+        details.appendChild(div);
+      });
+      totalSpan.innerText = total;
+       const modal = document.querySelector("#cart-modal .absolute");
+  let buyBtn = document.getElementById("buy-button");
+
+  if (!buyBtn) {
+    buyBtn = document.createElement("button");
+    buyBtn.id = "buy-button";
+    buyBtn.innerText = "Buy Now";
+    buyBtn.className = "mt-4 w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded font-semibold";
+    buyBtn.onclick = handleBuyNow;
+    modal.appendChild(buyBtn);
+  }
+
+  buyBtn.style.display = cart.length ? "block" : "none";
+    }
+
+    function attachAddToCartListeners() {
+  document.querySelectorAll('#product-container button[title="Add to Cart"]').forEach(btn => {
+    btn.onclick = () => {
+      const card = btn.closest('div.bg-gray-100');
+      const id = card.getAttribute('data-pid');
+      const name = card.getAttribute('data-name');
+      const price = parseFloat(card.getAttribute('data-price'));
+      const media = card.getAttribute('data-media');
+      addToCart(id, name, price, media);
+    };
+  });
+}
+
+const originalFetch = fetchAndDisplayProducts;
+fetchAndDisplayProducts = async function (query = "") {
+  await originalFetch(query);
+  attachAddToCartListeners();
+};
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderCartBar();
+    });
     document.addEventListener("DOMContentLoaded", async () => {
       const container = document.getElementById("navbar-container");
       const res = await fetch("navbar.html");
@@ -157,6 +303,10 @@
   filtered.forEach(product => {
   const card = document.createElement("div");
   card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
+  card.setAttribute("data-pid", product.p_id);
+  card.setAttribute("data-name", product.name);
+  card.setAttribute("data-price", product.price);
+  card.setAttribute("data-media", product.media || "assets/default-product.png");
 
   const isAdmin = user?.type === "admin";
 
