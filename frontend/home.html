@@ -18,7 +18,7 @@
   <script>
     const user = JSON.parse(localStorage.getItem("user") || "null");
     if (!user) {
-      location.replace("login.html");
+      location.replace("index.html");
     }
 
    
@@ -345,6 +345,37 @@ fetchAndDisplayProducts = async function (query = "") {
     console.error("Error fetching products:", err);
   }
 }
+async function handleBuyNow() {
+  if (cart.length === 0) {
+    alert("Your cart is empty.");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/checkout", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ items: cart })
+    });
+
+    const data = await res.json();
+    if (data.status === "success") {
+      alert("Order placed successfully!");
+      cart = [];
+      saveCart();
+      toggleCartModal(false);
+    } else {
+      alert("Checkout failed. Please try again.");
+    }
+  } catch (err) {
+    console.error("Checkout Error:", err);
+    alert("Something went wrong. Please try again.");
+  }
+}
+
 
   function searchProducts() {
       const query = document.getElementById("search-input").value;
