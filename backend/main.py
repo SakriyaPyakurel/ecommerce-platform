@@ -3,7 +3,7 @@ import random
 import re
 import bcrypt
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Response, HTTPException, status, Depends, UploadFile, File, Form
+from fastapi import FastAPI, Request, Response, HTTPException, status, Depends, UploadFile, File, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from itsdangerous import URLSafeSerializer, BadSignature
@@ -305,55 +305,41 @@ def get_products():
         ]
         return JSONResponse(content={"status": "success", "products": products_data})
     
-@app.post("/process_order")
-async def process_order(
-    request: Request,
-    current_user=Depends(get_current_user)
-):
-    data = await request.json()
-    items = data.get("items")  
-    
-    if not items or not isinstance(items, list):
-        return JSONResponse(content={"status": "error", "message": "Invalid order items"})
+@app.post("/checkout")
+def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_current_user)):
+    items = data.get("items", [])
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+    cookie = request.cookies.get("cookie")
+    data = serializer.loads(cookie)
+    user_id = data.get("u_id")
 
-    total = 0
+    if not items or latitude is None or longitude is None:
+        raise HTTPException(status_code=400, detail="Invalid input.")
+
+    total = sum(item['qty'] * item['price'] for item in items)
+    location_url = f"https://www.google.com/maps?q={latitude},{longitude}"
+
     with Session(engine) as session:
-        order_items = []
-
-        for item in items:
-            product = session.exec(select(product).where(product.p_id == item["p_id"])).first()
-            if not product or product.stock < item["quantity"]:
-                return JSONResponse(content={"status": "error", "message": f"Product {item['p_id']} not available or insufficient stock"})
-
-            total += product.price * item["quantity"]
-            order_items.append({
-                "product_id": product.p_id,
-                "quantity": item["quantity"],
-                "price": product.price
-            })
-            product.stock -= item["quantity"]
-
-       
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         order = Order(
-            user_id=current_user.u_id,
+            user_id=user_id,
             total_amount=total,
-            order_date_time=now
+            order_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            location_url=location_url
         )
         session.add(order)
         session.commit()
-        session.refresh(order)
+        session.refresh(order)  # populate o_id
 
-      
-        for item in order_items:
+        for item in items:
             order_item = OrderItem(
                 order_id=order.o_id,
-                product_id=item["p_id"],
-                quantity=item["quantity"],
+                product_id=item["id"],
+                quantity=item["qty"],
                 price=item["price"]
             )
             session.add(order_item)
 
         session.commit()
 
-    return JSONResponse(content={"status": "success", "order_id": order.o_id})
+        return {"status": "success", "order_id": order.o_id}  # now inside session

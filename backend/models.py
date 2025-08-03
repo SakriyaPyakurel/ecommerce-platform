@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime,timezone
 class users(SQLModel, table=True):
     u_id: int = Field(primary_key=True)
     username: str
@@ -27,8 +27,9 @@ class Order(SQLModel, table=True):
     o_id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.u_id")
     status: str = Field(default="Pending")
-    order_date_time: datetime = Field(default_factory=datetime.utcnow)
+    order_date_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     total_amount: float
+    location_url: Optional[str] = None
 
 class OrderItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
