@@ -126,7 +126,17 @@
     </div>
   </div>
 </div>
-
+<form id="esewaForm" action="https://rc.esewa.com.np/epay/main" method="POST" class="hidden">
+  <input name="tAmt" type="hidden" />
+  <input name="amt" type="hidden" />
+  <input name="txAmt" value="0" type="hidden" />
+  <input name="psc" value="0" type="hidden" />
+  <input name="pdc" value="0" type="hidden" />
+  <input name="pid" type="hidden" />
+  <input name="scd" value="EPAYTEST" type="hidden" />
+  <input name="su" value="http://localhost:8000/esewa_success" type="hidden" />
+  <input name="fu" value="http://localhost:8000/esewa_failure" type="hidden" />
+</form>
   <script>
      let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
@@ -345,35 +355,42 @@ fetchAndDisplayProducts = async function (query = "") {
     console.error("Error fetching products:", err);
   }
 }
+
 async function handleBuyNow() {
   if (cart.length === 0) {
     alert("Your cart is empty.");
     return;
   }
 
-  try {
-    const res = await fetch("http://127.0.0.1:8000/checkout", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ items: cart })
-    });
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const { latitude, longitude } = position.coords;
 
-    const data = await res.json();
-    if (data.status === "success") {
-      alert("Order placed successfully!");
-      cart = [];
-      saveCart();
-      toggleCartModal(false);
-    } else {
-      alert("Checkout failed. Please try again.");
+    try {
+      const res = await fetch("http://127.0.0.1:8000/checkout", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ items: cart, latitude, longitude })
+      });
+
+      const data = await res.json();
+      if (data.status === "success") {
+        alert("Order placed successfully!");
+        cart = [];
+        saveCart();
+        toggleCartModal(false);
+      } else {
+        alert("Checkout failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Checkout Error:", err);
+      alert("Something went wrong. Please try again.");
     }
-  } catch (err) {
-    console.error("Checkout Error:", err);
-    alert("Something went wrong. Please try again.");
-  }
+  }, (error) => {
+    alert("Location access denied. Cannot place order.");
+  });
 }
 
 
