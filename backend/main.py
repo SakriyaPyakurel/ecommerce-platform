@@ -310,11 +310,12 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
     items = data.get("items", [])
     latitude = data.get("latitude")
     longitude = data.get("longitude")
+    payment_method = data.get("payment_method")
     cookie = request.cookies.get("cookie")
     data = serializer.loads(cookie)
     user_id = data.get("u_id")
 
-    if not items or latitude is None or longitude is None:
+    if not items or latitude is None or longitude is None or not payment_method:
         raise HTTPException(status_code=400, detail="Invalid input.")
 
     total = sum(item['qty'] * item['price'] for item in items)
@@ -325,11 +326,12 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
             user_id=user_id,
             total_amount=total,
             order_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            location_url=location_url
+            location_url=location_url,
+            payment_method=payment_method 
         )
         session.add(order)
         session.commit()
-        session.refresh(order)  # populate o_id
+        session.refresh(order)
 
         for item in items:
             order_item = OrderItem(
@@ -342,4 +344,4 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
 
         session.commit()
 
-        return {"status": "success", "order_id": order.o_id}  # now inside session
+    return {"status": "success", "order_id": order.o_id}
