@@ -356,14 +356,21 @@ fetchAndDisplayProducts = async function (query = "") {
   }
 }
 
+let isProcessing = false;
+
 async function handleBuyNow() {
+  if (isProcessing) return;
+  isProcessing = true;
+
   if (cart.length === 0) {
-    alert("Your cart is empty.");
+    alert("Cart is empty.");
+    isProcessing = false;
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
-    const { latitude, longitude } = position.coords;
+  navigator.geolocation.getCurrentPosition(async position => {
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
 
     try {
       const res = await fetch("http://127.0.0.1:8000/checkout", {
@@ -377,23 +384,25 @@ async function handleBuyNow() {
 
       const data = await res.json();
       if (data.status === "success") {
-        alert("Order placed successfully!");
+        alert("Order placed!");
         cart = [];
-        saveCart();
+        localStorage.setItem("cart", "[]");
+        renderCartBar();
         toggleCartModal(false);
       } else {
-        alert("Checkout failed. Please try again.");
+        alert("Checkout failed.");
       }
     } catch (err) {
-      console.error("Checkout Error:", err);
-      alert("Something went wrong. Please try again.");
+      console.error("Error:", err);
+      alert("Error during checkout.");
+    } finally {
+      isProcessing = false;
     }
-  }, (error) => {
-    alert("Location access denied. Cannot place order.");
+  }, () => {
+    alert("Location permission denied.");
+    isProcessing = false;
   });
 }
-
-
   function searchProducts() {
       const query = document.getElementById("search-input").value;
       fetchAndDisplayProducts(query);
