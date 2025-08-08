@@ -2,8 +2,10 @@ import os
 import random
 import re
 import bcrypt
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response, HTTPException, status, Depends, UploadFile, File, Form, Body
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from itsdangerous import URLSafeSerializer, BadSignature
@@ -11,7 +13,6 @@ from sqlmodel import create_engine, Session, select
 from input_params import credentials
 from models import users, admin , product , Order, OrderItem
 from pathlib import Path
-from typing import List
 from datetime import datetime
 
 load_dotenv()
@@ -124,8 +125,8 @@ def login(user: credentials):
             key="cookie",
             value=session_data,
             httponly=True,
-            secure=False,
-            samesite="Lax",
+            secure=True,
+            samesite="None",
             max_age=3600
         )
         return response
@@ -311,12 +312,11 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
     latitude = data.get("latitude")
     longitude = data.get("longitude")
     payment_method = data.get("payment_method")
-    cookie = request.cookies.get("cookie")
-    data = serializer.loads(cookie)
-    user_id = data.get("u_id")
 
     if not items or latitude is None or longitude is None or not payment_method:
         raise HTTPException(status_code=400, detail="Invalid input.")
+
+    user_id = current_user["user"].u_id 
 
     total = sum(item['qty'] * item['price'] for item in items)
     location_url = f"https://www.google.com/maps?q={latitude},{longitude}"
@@ -327,7 +327,7 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
             total_amount=total,
             order_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             location_url=location_url,
-            payment_method=payment_method 
+            delivery=payment_method 
         )
         session.add(order)
         session.commit()
@@ -344,4 +344,33 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
 
         session.commit()
 
-    return {"status": "success", "order_id": order.o_id}
+        return {"status": "success", "order_id": str(order.o_id)}
+
+@app.post("/esewa_success")
+async def esewa_success(request: Request):
+    form = await request.form()
+    amt = form.get("amt")
+    pid = form.get("pid")
+    refId = form.get("refId")
+
+    verify_url = "https://uat.esewa.com.np/epay/transrec"
+    payload = {
+        "amt": amt,
+        "rid": refId,
+        "pid": pid,
+        "scd": "EPAYTEST"
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(verify_url, data=payload)
+        result = response.text
+
+    if "<response_code>Success</response_code>" in result:
+        return HTMLResponse(content="<h1>✅ eSewa Payment Verified Successfully!</h1>", status_code=200)
+    else:
+        return HTMLResponse(content="<h1>❌ Payment Verification Failed!</h1>", status_code=400)
+
+
+@app.post("/esewa_failure")
+async def esewa_failure(request: Request):
+    return HTMLResponse(content="<h1>❌ Payment Failed or Cancelled.</h1>", status_code=400)
