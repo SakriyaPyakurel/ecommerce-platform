@@ -119,24 +119,23 @@
         Total: Rs. <span id="cart-total">0</span>
       </div>
       <button id="buy-button"
-              onclick="handleBuyNow()"
+              onclick="showPaymentModal()"
               class="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded hidden">
         Buy Now
       </button>
     </div>
   </div>
 </div>
-<form id="esewaForm" action="https://rc.esewa.com.np/epay/main" method="POST" class="hidden">
-  <input name="tAmt" type="hidden" />
-  <input name="amt" type="hidden" />
-  <input name="txAmt" value="0" type="hidden" />
-  <input name="psc" value="0" type="hidden" />
-  <input name="pdc" value="0" type="hidden" />
-  <input name="pid" type="hidden" />
-  <input name="scd" value="EPAYTEST" type="hidden" />
-  <input name="su" value="http://localhost:8000/esewa_success" type="hidden" />
-  <input name="fu" value="http://localhost:8000/esewa_failure" type="hidden" />
-</form>
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-50">
+  <div class="bg-white rounded shadow-lg p-6 w-80 text-black">
+    <h2 class="text-lg font-bold mb-4">Choose Payment Method</h2>
+    <div class="flex flex-col gap-3">
+      <button onclick="selectPaymentMethod('cod')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Cash on Delivery</button>
+      <button onclick="selectPaymentMethod('esewa')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">Pay with eSewa</button>
+    </div>
+    <button onclick="closePaymentModal()" class="mt-4 text-sm text-gray-600 hover:underline">Cancel</button>
+  </div>
+</div>
   <script>
      let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
@@ -355,54 +354,82 @@ fetchAndDisplayProducts = async function (query = "") {
     console.error("Error fetching products:", err);
   }
 }
-
-let isProcessing = false;
-
-async function handleBuyNow() {
-  if (isProcessing) return;
-  isProcessing = true;
-
-  if (cart.length === 0) {
-    alert("Cart is empty.");
-    isProcessing = false;
-    return;
+function showPaymentModal() {
+    document.getElementById('paymentModal').classList.remove('hidden');
   }
 
-  navigator.geolocation.getCurrentPosition(async position => {
-    const latitude = position.coords.latitude;
-    const longitude = position.coords.longitude;
+  function closePaymentModal() {
+    document.getElementById('paymentModal').classList.add('hidden');
+  }
 
-    try {
-      const res = await fetch("http://127.0.0.1:8000/checkout", {
+  async function selectPaymentMethod(method) {
+    closePaymentModal();
+
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const payload = {
+        items: cart,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        payment_method: method
+      };
+
+      const response = await fetch("http://127.0.0.1:8000/checkout", {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ items: cart, latitude, longitude })
+        credentials: "include",
+        body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
-      if (data.status === "success") {
-        alert("Order placed!");
-        cart = [];
-        localStorage.setItem("cart", "[]");
-        renderCartBar();
-        toggleCartModal(false);
+      const result = await response.json();
+
+      if (method === "esewa" && result.order_id) {
+        const orderId = result.order_id;
+        const total = cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
+
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+
+        const fields = {
+          amt: total,
+          psc: 0,
+          pdc: 0,
+          txAmt: 0,
+          tAmt: total,
+          pid: orderId,
+          scd: "EPAYTEST",
+          su: `https://c6f89153d84d.ngrok-free.app/esewa_success`,
+          fu: `https://c6f89153d84d.ngrok-free.app/esewa_failure`
+        };
+        fields.tAmt = fields.amt + fields.psc + fields.pdc + fields.txAmt;
+        for (const key in fields) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = fields[key];
+          form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+      } else if (method === "cod") {
+        alert("Order placed with Cash on Delivery.");
+        localStorage.removeItem("cart");
+        window.location.reload();
       } else {
-        alert("Checkout failed.");
+        alert("Something went wrong.");
       }
-    } catch (err) {
-      console.error("Error:", err);
-      alert("Error during checkout.");
-    } finally {
-      isProcessing = false;
-    }
-  }, () => {
-    alert("Location permission denied.");
-    isProcessing = false;
-  });
-}
+    });
+  }
   function searchProducts() {
       const query = document.getElementById("search-input").value;
       fetchAndDisplayProducts(query);
