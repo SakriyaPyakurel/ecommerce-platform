@@ -31,6 +31,7 @@ class Order(SQLModel, table=True):
     total_amount: float
     location_url: Optional[str] = None
     delivery:str
+    esewa_pid: Optional[str] = None
 
 class OrderItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from itsdangerous import URLSafeSerializer, BadSignature
 from sqlmodel import create_engine, Session, select
 from input_params import credentials
+import uuid
 from models import users, admin , product , Order, OrderItem
 from pathlib import Path
 from datetime import datetime
@@ -48,6 +49,11 @@ def is_email_valid(email: str) -> bool:
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def generate_esewa_pid():
+    date_str = datetime.now().strftime("%Y%m%d%H%M%S")
+    unique_id = uuid.uuid4().hex[:6].upper()
+    return f"ORD-{date_str}-{unique_id}"
 
 def get_current_user(request: Request):
     cookie = request.cookies.get("cookie")
@@ -305,7 +311,6 @@ def get_products():
             } for prod in products_list
         ]
         return JSONResponse(content={"status": "success", "products": products_data})
-    
 @app.post("/checkout")
 def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_current_user)):
     items = data.get("items", [])
@@ -316,26 +321,32 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
     if not items or latitude is None or longitude is None or not payment_method:
         raise HTTPException(status_code=400, detail="Invalid input.")
 
-    user_id = current_user["user"].u_id 
+    user_id = current_user["user"].u_id
 
     total = sum(item['qty'] * item['price'] for item in items)
     location_url = f"https://www.google.com/maps?q={latitude},{longitude}"
 
     with Session(engine) as session:
+        esewa_pid = None
+        if payment_method == "esewa":
+            esewa_pid = generate_esewa_pid()
+
         order = Order(
             user_id=user_id,
             total_amount=total,
             order_date_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             location_url=location_url,
-            delivery=payment_method 
+            delivery=payment_method,
+            esewa_pid=esewa_pid
         )
         session.add(order)
         session.commit()
         session.refresh(order)
+        order_id = order.o_id 
 
         for item in items:
             order_item = OrderItem(
-                order_id=order.o_id,
+                order_id=order_id,
                 product_id=item["id"],
                 quantity=item["qty"],
                 price=item["price"]
@@ -344,12 +355,12 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
 
         session.commit()
 
-        return {"status": "success", "order_id": str(order.o_id)}
+    return {"status": "success", "order_id": order_id, "esewa_pid": esewa_pid}
 
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
     form = await request.form()
-    amt = form.get("amt")
+    amt = form.get("amt") or form.get("tAmt")  
     pid = form.get("pid")
     refId = form.get("refId")
 
@@ -370,7 +381,7 @@ async def esewa_success(request: Request):
     else:
         return HTMLResponse(content="<h1>❌ Payment Verification Failed!</h1>", status_code=400)
 
-
 @app.post("/esewa_failure")
 async def esewa_failure(request: Request):
-    return HTMLResponse(content="<h1>❌ Payment Failed or Cancelled.</h1>", status_code=400)
+    return HTMLResponse(content="<h1>❌ Payment Failed or Cancelled.</h1>", status_code=400)    
+
