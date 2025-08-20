@@ -136,6 +136,31 @@
     <button onclick="closePaymentModal()" class="mt-4 text-sm text-gray-600 hover:underline">Cancel</button>
   </div>
 </div>
+<div id="editModal" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+      <h2 class="text-xl font-bold mb-4">Edit Product</h2>
+      <form id="editForm">
+        <input type="hidden" id="edit_pid" name="pid">
+        
+        <label class="block mb-2">Name</label>
+        <input type="text" id="edit_name" name="name" class="border w-full mb-4 px-2 py-1">
+
+        <label class="block mb-2">Price</label>
+        <input type="number" id="edit_price" name="price" class="border w-full mb-4 px-2 py-1">
+
+        <label class="block mb-2">Description</label>
+        <textarea id="edit_desc" name="description" class="border w-full mb-4 px-2 py-1"></textarea>
+
+        <label class="block mb-2">Image</label>
+        <input type="file" id="edit_image" name="image" accept="image/*" class="border w-full mb-4 px-2 py-1">
+        <div class="flex justify-end gap-2">
+          <button type="button" onclick="closeModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
+          <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
      let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
@@ -362,6 +387,29 @@ function showPaymentModal() {
     document.getElementById('paymentModal').classList.add('hidden');
   }
 
+  async function editProduct(pid){
+     try {
+        const res = await fetch(`http://127.0.0.1:8000/get_product/${pid}`);
+        const product = await res.json();
+
+    
+        document.getElementById('edit_pid').value = product.id;
+        document.getElementById('edit_name').value = product.name;
+        document.getElementById('edit_price').value = product.price;
+        document.getElementById('edit_image').value = "";
+        document.getElementById('edit_desc').value = product.description;
+
+        document.getElementById('editModal').classList.remove('hidden');
+        document.getElementById('editModal').classList.add('flex');
+      } catch (err) {
+        console.error("Error fetching product:", err);
+      }
+  }
+      function closeModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      document.getElementById('editModal').classList.remove('flex');
+    }
+
   async function selectPaymentMethod(method) {
     closePaymentModal();
 
@@ -391,13 +439,13 @@ function showPaymentModal() {
 
       const result = await response.json();
 
-      if (method === "esewa" && result.order_id) {
-        const orderId = result.order_id;
+      if (method === "esewa" && result.esewa_pid) {
+        const orderId = result.esewa_pid;
         const total = cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
 
         const form = document.createElement("form");
         form.method = "POST";
-        form.action = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+        form.action = "https://uat.esewa.com.np/epay/main";
 
         const fields = {
           amt: total,
@@ -407,8 +455,8 @@ function showPaymentModal() {
           tAmt: total,
           pid: orderId,
           scd: "EPAYTEST",
-          su: `https://c6f89153d84d.ngrok-free.app/esewa_success`,
-          fu: `https://c6f89153d84d.ngrok-free.app/esewa_failure`
+          su: `https://68883bc83003.ngrok-free.app/esewa_success`, // Replacable with ngrok URL
+          fu: `https://68883bc83003.ngrok-free.app/esewa_failure`
         };
         fields.tAmt = fields.amt + fields.psc + fields.pdc + fields.txAmt;
         for (const key in fields) {
