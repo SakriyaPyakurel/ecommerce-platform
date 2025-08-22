@@ -357,6 +357,70 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
 
     return {"status": "success", "order_id": order_id, "esewa_pid": esewa_pid}
 
+@app.post('/get_product') 
+def get_product(data_dict = Body(...)):
+    p_id = data_dict.get("pid")
+    if not p_id:
+        raise HTTPException(status_code=400, detail="Product ID is required")
+
+    with Session(engine) as session:
+        product_obj = session.get(product, p_id)
+        if not product_obj:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        product_data = {
+            "name": product_obj.name,
+            "description": product_obj.description,
+            "price": product_obj.price,
+            "media": product_obj.media,
+        }
+
+    return JSONResponse(content={"status": "success", "product": product_data})
+
+
+@app.post('/update_product') 
+def update_product(
+    p_id: int = Form(...),
+    name: str = Form(None),
+    description: str = Form(None),
+    price: float = Form(None),
+    image: UploadFile = File(None),
+    current_user=Depends(get_current_user)
+):
+    if current_user["type"] == "user":
+        raise HTTPException(status_code=403, detail="Not authorized to update products")
+
+    with Session(engine) as session:
+        product_obj = session.get(product, p_id)
+        if not product_obj:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        if name:
+            product_obj.name = name
+        if description:
+            product_obj.description = description
+        if price is not None:
+            product_obj.price = price
+
+        if image and image.filename:
+            save_dir = os.path.join('..','frontend','products') 
+            os.makedirs(save_dir,exist_ok=True)
+            ext = os.path.splitext(image.filename)[1]
+            filename = f"{p_id}_{uuid.uuid4().hex}{ext}"
+            full_path = os.path.join(save_dir, filename)
+            with open(full_path,'wb') as f:
+                f.write(image.file.read())
+            product_obj.media = os.path.join('products', filename).replace('\\', '/')
+
+        session.add(product_obj)
+        session.commit()
+        session.refresh(product_obj)
+
+    return {
+    "status": "success",
+    "message": "Product updated successfully",
+    }
+
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
     form = await request.form()
@@ -380,6 +444,9 @@ async def esewa_success(request: Request):
         return HTMLResponse(content="<h1>✅ eSewa Payment Verified Successfully!</h1>", status_code=200)
     else:
         return HTMLResponse(content="<h1>❌ Payment Verification Failed!</h1>", status_code=400)
+    
+
+
 
 @app.post("/esewa_failure")
 async def esewa_failure(request: Request):
