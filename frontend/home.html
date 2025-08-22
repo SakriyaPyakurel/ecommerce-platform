@@ -136,31 +136,55 @@
     <button onclick="closePaymentModal()" class="mt-4 text-sm text-gray-600 hover:underline">Cancel</button>
   </div>
 </div>
-<div id="editModal" class="fixed inset-0 hidden items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white p-6 rounded shadow-lg w-96">
-      <h2 class="text-xl font-bold mb-4">Edit Product</h2>
-      <form id="editForm">
-        <input type="hidden" id="edit_pid" name="pid">
-        
-        <label class="block mb-2">Name</label>
-        <input type="text" id="edit_name" name="name" class="border w-full mb-4 px-2 py-1">
 
-        <label class="block mb-2">Price</label>
-        <input type="number" id="edit_price" name="price" class="border w-full mb-4 px-2 py-1">
+<div id="editModal" 
+     class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative">
 
-        <label class="block mb-2">Description</label>
-        <textarea id="edit_desc" name="description" class="border w-full mb-4 px-2 py-1"></textarea>
 
-        <label class="block mb-2">Image</label>
-        <input type="file" id="edit_image" name="image" accept="image/*" class="border w-full mb-4 px-2 py-1">
-        <div class="flex justify-end gap-2">
-          <button type="button" onclick="closeModal()" class="bg-gray-400 text-white px-3 py-1 rounded">Cancel</button>
-          <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded">Save</button>
-        </div>
-      </form>
-    </div>
+    <h2 class="text-xl font-semibold mb-4">Edit Product</h2>
+    
+    <form id="editProductForm" class="space-y-4">
+      <input type="hidden" id="edit_pid" name="pid" />
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Product Name</label>
+        <input type="text" id="edit_name" name="name" 
+               class="mt-1 block w-full border rounded-md p-2" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Description</label>
+        <textarea id="edit_description" name="description" 
+                  class="mt-1 block w-full border rounded-md p-2"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Price</label>
+        <input type="number" id="edit_price" name="price" 
+               class="mt-1 block w-full border rounded-md p-2" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Media URL</label>
+        <input type="file" id="edit_media" name="media"  accept="image/*"
+               class="mt-1 block w-full border rounded-md p-2" />
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="closeModal()" 
+                class="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400">
+          Cancel
+        </button>
+        <button type="submit" 
+                class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+          Save Changes
+        </button>
+      </div>
+    </form>
   </div>
-
+</div>
   <script>
      let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
@@ -386,28 +410,37 @@ function showPaymentModal() {
   function closePaymentModal() {
     document.getElementById('paymentModal').classList.add('hidden');
   }
+  async function editProduct(pid) {
+  try {
+    const response = await fetch("http://127.0.0.1:8000/get_product", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pid: pid }),
+    });
 
-  async function editProduct(pid){
-     try {
-        const res = await fetch(`http://127.0.0.1:8000/get_product/${pid}`);
-        const product = await res.json();
+    const result = await response.json();
 
-    
-        document.getElementById('edit_pid').value = product.id;
-        document.getElementById('edit_name').value = product.name;
-        document.getElementById('edit_price').value = product.price;
-        document.getElementById('edit_image').value = "";
-        document.getElementById('edit_desc').value = product.description;
+    if (result.status === "success") {
+      const product = result.product;
 
-        document.getElementById('editModal').classList.remove('hidden');
-        document.getElementById('editModal').classList.add('flex');
-      } catch (err) {
-        console.error("Error fetching product:", err);
-      }
+      document.getElementById("edit_pid").value = pid; 
+      document.getElementById("edit_name").value = product.name;
+      document.getElementById("edit_description").value = product.description;
+      document.getElementById("edit_price").value = product.price;
+
+      document.getElementById("editModal").classList.remove("hidden");
+    } else {
+      alert("Failed to fetch product: " + (result.detail || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Error fetching product:", err);
+    alert("Something went wrong while fetching product.");
   }
-      function closeModal() {
+}  
+    function closeModal() {
       document.getElementById('editModal').classList.add('hidden');
-      document.getElementById('editModal').classList.remove('flex');
     }
 
   async function selectPaymentMethod(method) {
