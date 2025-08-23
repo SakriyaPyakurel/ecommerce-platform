@@ -372,7 +372,6 @@ def get_product(data_dict = Body(...)):
             "name": product_obj.name,
             "description": product_obj.description,
             "price": product_obj.price,
-            "media": product_obj.media,
         }
 
     return JSONResponse(content={"status": "success", "product": product_data})
