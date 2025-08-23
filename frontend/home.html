@@ -177,7 +177,7 @@
                 class="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400">
           Cancel
         </button>
-        <button type="submit" 
+        <button type="button" onclick="updateproduct()" 
                 class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
           Save Changes
         </button>
@@ -439,6 +439,37 @@ function showPaymentModal() {
     alert("Something went wrong while fetching product.");
   }
 }  
+    async function updateproduct(){
+      const pid = document.getElementById("edit_pid").value;
+      const name = document.getElementById("edit_name").value;
+      const description = document.getElementById("edit_description").value;
+      const price = document.getElementById("edit_price").value; 
+      const media = document.getElementById("edit_media").files[0];
+
+      const formData = new FormData();
+      formData.append("p_id", pid); 
+      formData.append("name", name); 
+      formData.append("description", description); 
+      formData.append("price", price); 
+      if (media) formData.append("media", media);
+      try{
+        const response = await fetch('http://127.0.0.1:8000/update_product',{
+          method:'POST',
+          body:formData,
+          credentials: "include" 
+        })
+        const result = await response.json();
+        if(result.status=== 'success'){
+          alert('Product updated successfully');
+          closeModal();
+          window.location.reload();
+        }else{
+          alert('Failed to update product: ' + (result.detail || 'Unknown error'));
+        }
+      }catch(err){
+        alert('Error updating product. Please try again');
+      }
+    }
     function closeModal() {
       document.getElementById('editModal').classList.add('hidden');
     }
