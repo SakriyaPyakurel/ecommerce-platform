@@ -419,6 +419,53 @@ def update_product(
     "status": "success",
     "message": "Product updated successfully",
     }
+@app.post('/get_stock')
+def get_stock(
+    data_dict = Body(...),
+    current_user=Depends(get_current_user)
+    ):
+    if current_user['type'] == 'user':
+        raise HTTPException(status_code=403, detail="Not authorized to add/deduct product's stock") 
+    pid = data_dict.get('pid')
+    with Session(engine) as session:
+        product_obj = session.get(product,pid) 
+        if not product_obj:
+            raise HTTPException(status_code=404, detail="Product not found")
+        stock = product_obj.stock
+    return {'status':'success','stock':stock}
+
+@app.post('/edit_stock') 
+def edit_stock(
+    data_dict=Body(...),
+    current_user=Depends(get_current_user)):
+    if current_user['type'] == 'user':
+        raise HTTPException(status_code=403, detail="Not authorized to update product's stock") 
+    print(data_dict)
+    pid = int(data_dict['pid'])
+    qty = int(data_dict['stock'])
+    fixer = data_dict.get('fixer') 
+    with Session(engine) as session:
+        product_obj = session.get(product,pid) 
+        if not product_obj:
+            raise HTTPException(status_code=404, detail="Product not found.")
+        stock = product_obj.stock
+        newstock = None
+        if fixer == '+':
+            newstock = stock+qty
+        elif fixer == '-':
+            if stock<qty:
+              raise HTTPException(status_code=404, detail="Invalid quantity supplied.") 
+            else:
+                newstock = stock-qty
+        else:
+            raise HTTPException(status_code=404, detail="Cannot update product stock.")
+        product_obj.stock = newstock
+        session.add(product_obj) 
+        session.commit() 
+        session.refresh(product_obj) 
+    return {'status':'success','message':'Stock updated successfully','oldstock':stock,'newstock':newstock}
+
+
 
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
