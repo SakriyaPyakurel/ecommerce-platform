@@ -161,7 +161,7 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700">Price</label>
+        <label class="block text-sm font-medium text-gray-700" min="1">Price</label>
         <input type="number" id="edit_price" name="price" 
                class="mt-1 block w-full border rounded-md p-2" />
       </div>
@@ -180,6 +180,40 @@
         <button type="button" onclick="updateproduct()" 
                 class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
           Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<div id="stockModal" 
+     class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative">
+
+
+    <h2 class="text-xl font-semibold mb-4">Update Product stock</h2>
+    <h3 id="currentstock" class="text-xl font-semibold mb-4"></h3>
+    <form id="updatestockform" class="space-y-4">
+      <input type="hidden" id="stock_pid" name="pid" />
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Stock</label>
+        <input type="number" id="edit_stock" name="stock" 
+               class="mt-1 block w-full border rounded-md p-2" min="1" />
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="closestockModal()" 
+                class="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400">
+          Cancel
+        </button>
+        <button type="button" onclick="stockupdater('+')" title="Add stock"
+                class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700">
+          +
+        </button>
+        <button type="button" onclick="stockupdater('-')" title="Deduct stock"
+                class="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700">
+          -
         </button>
       </div>
     </form>
@@ -390,8 +424,8 @@ fetchAndDisplayProducts = async function (query = "") {
     <button onclick="deleteProduct('${product.p_id}')" class="flex items-center gap-1 bg-red-500 hover:bg-red-600 px-3 py-1 text-xs rounded-full text-white" title="Delete Product">
       <i class="fas fa-trash"></i>
     </button>
-    <button onclick="addstock('${product.p_id}')" class="flex items-center gap-1 bg-green-500 hover:bg-green-600 px-3 py-1 text-medium rounded-full text-white" title="Add Stock">
-      +
+    <button onclick="updatestock('${product.p_id}')" class="flex items-center gap-1 bg-green-500 hover:bg-green-600 px-3 py-1 text-medium rounded-full text-white" title="Update Stock">
+      +/-
     </button>
   </div>
 ` : ""}
@@ -409,6 +443,57 @@ function showPaymentModal() {
 
   function closePaymentModal() {
     document.getElementById('paymentModal').classList.add('hidden');
+  }
+  function closestockModal(){
+    document.getElementById('stockModal').classList.add('hidden')
+  }
+  async function updatestock(pid){
+    try{
+      const response = await fetch('http://127.0.0.1:8000/get_stock',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({ pid: pid }),
+        credentials:'include'
+      });
+      const result = await response.json();
+      if (result.status === "success"){
+        document.getElementById('stock_pid').value = pid
+        document.getElementById('currentstock').innerText = `Current stock : ${result.stock}`
+        document.getElementById('stockModal').classList.remove('hidden')
+      }else{
+         alert("Failed to fetch product stock: " + (result.detail || "Unknown error"));
+      }
+    }catch(err){
+      console.error("Error fetching product stock:", err);
+      alert("Something went wrong while fetching product stock.");
+    }
+  }
+  async function stockupdater(fixer){
+     const pid = document.getElementById('stock_pid').value
+     const stock = document.getElementById('edit_stock').value
+     try{
+      const response = await fetch('http://127.0.0.1:8000/edit_stock',{
+          method:'POST',
+          body:JSON.stringify( {pid:pid,stock:stock,fixer:fixer}),
+           headers:{
+          'Content-Type':'application/json'
+        },
+          credentials:'include',
+      })
+      const result = await response.json() 
+      if (result.status === 'success'){
+        alert(`${result.message}\nOldstock:${result.oldstock}\nUpdatedstock:${result.newstock}`)
+        document.getElementById('updatestockform').classList.add('hidden') 
+        window.location.reload()
+      }else{
+        alert("Failed to fetch product stock: " + (result.detail || "Unknown error"));
+      }
+     }catch(err){
+      console.error("Error updating product stock:", err);
+      alert("Something went wrong while updating  product stock.");
+     }
   }
   async function editProduct(pid) {
   try {
