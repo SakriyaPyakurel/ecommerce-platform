@@ -327,10 +327,21 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
     location_url = f"https://www.google.com/maps?q={latitude},{longitude}"
 
     with Session(engine) as session:
+        for item in items:
+            prod_obj = session.get(product,int(item['id'])) 
+            if prod_obj.stock < item['qty']:
+                raise HTTPException(status_code=400,detail=f'product-id:{item['id']} has no available ordered stock')
         esewa_pid = None
         if payment_method == "esewa":
             esewa_pid = generate_esewa_pid()
-
+        for item in items:
+            prod_obj = session.get(product,int(item['id']))
+            newstock = prod_obj.stock - item['qty'] 
+            prod_obj.stock = newstock 
+            session.add(prod_obj) 
+            session.commit() 
+            session.refresh(prod_obj)
+        
         order = Order(
             user_id=user_id,
             total_amount=total,
@@ -465,7 +476,24 @@ def edit_stock(
         session.refresh(product_obj) 
     return {'status':'success','message':'Stock updated successfully','oldstock':stock,'newstock':newstock}
 
-
+@app.post('/delete_product') 
+def delete_product(
+    data_dict=Body(...),
+    current_user=Depends(get_current_user)
+    ):
+    if current_user['type'] == 'user':
+        raise HTTPException(status_code=403, detail="Not authorized to delete products") 
+    pid = data_dict.get('pid')
+    with Session(engine) as session:
+        orderitems = session.query(OrderItem).filter(OrderItem.product_id == pid).first()
+        if orderitems:
+          raise HTTPException(status_code=400, detail="Product cannot be deleted because it is linked to orders")
+        product_obj = session.get(product,pid) 
+        if not product_obj:
+            raise HTTPException(status_code=404, detail="Product not found")
+        session.delete(product_obj) 
+        session.commit() 
+    return {'status':'success','message':'Product deleted successfully'}
 
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
