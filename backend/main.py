@@ -12,7 +12,7 @@ from itsdangerous import URLSafeSerializer, BadSignature
 from sqlmodel import create_engine, Session, select
 from input_params import credentials
 import uuid
-from models import users, admin , product , Order, OrderItem
+from models import Users, Admin , Product , Order, OrderItem
 from pathlib import Path
 from datetime import datetime
 
@@ -70,12 +70,12 @@ def get_current_user(request: Request):
 
     with Session(engine) as session:
         if user_id:
-            user = session.exec(select(users).where(users.u_id == user_id)).first()
+            user = session.exec(select(Users).where(Users.u_id == user_id)).first()
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
             return {"user": user, "type": "user"}
         elif admin_id:
-            admin_user = session.exec(select(admin).where(admin.a_id == admin_id)).first()
+            admin_user = session.exec(select(Admin).where(Admin.a_id == admin_id)).first()
             if not admin_user:
                 raise HTTPException(status_code=404, detail="Admin not found")
             return {"user": admin_user, "type": "admin"}
@@ -90,14 +90,14 @@ def signup(user: credentials):
         return {"status": "error", "message": "Weak password"}
 
     with Session(engine) as session:
-        if session.exec(select(users).where(users.email == user.email)).first():
+        if session.exec(select(Users).where(Users.email == user.email)).first():
             return {"status": "error", "message": "Email already exists"}
 
         new_uid = random.randint(100, 100000)
-        while session.exec(select(users).where(users.u_id == new_uid)).first():
+        while session.exec(select(Users).where(Users.u_id == new_uid)).first():
             new_uid = random.randint(100, 100000)
 
-        new_user = users(
+        new_user = Users(
             u_id=new_uid,
             username=user.username,
             email=user.email,
@@ -113,10 +113,10 @@ def signup(user: credentials):
 @app.post("/login")
 def login(user: credentials):
     with Session(engine) as session:
-        db_user = session.exec(select(users).where(users.email == user.email)).first()
+        db_user = session.exec(select(Users).where(Users.email == user.email)).first()
         user_type = "user"
         if not db_user:
-            db_user = session.exec(select(admin).where(admin.email == user.email)).first()
+            db_user = session.exec(select(Admin).where(Admin.email == user.email)).first()
             user_type = "admin"
 
         if not db_user or db_user.username != user.username:
@@ -145,14 +145,14 @@ def add_admin(user: credentials):
         return {"status": "error", "message": "Weak password"}
 
     with Session(engine) as session:
-        if session.exec(select(admin).where(admin.email == user.email)).first():
+        if session.exec(select(Admin).where(Admin.email == user.email)).first():
             return {"status": "error", "message": "Email already exists"}
 
         new_aid = random.randint(100, 10000)
-        while session.exec(select(admin).where(admin.a_id == new_aid)).first():
+        while session.exec(select(Admin).where(Admin.a_id == new_aid)).first():
             new_aid = random.randint(100, 10000)
 
-        new_admin = admin(
+        new_admin = Admin(
             a_id=new_aid,
             username=user.username,
             email=user.email,
@@ -207,7 +207,7 @@ async def update_profile(
             return JSONResponse(status_code=400, content={"status": "error", "message": "Incorrect password"})
 
         with Session(engine) as session:
-            db_model = users if user_type == "user" else admin
+            db_model = Users if user_type == "user" else Admin
             user_id = current_user.u_id if user_type == "user" else current_user.a_id
 
             db_obj = session.get(db_model, user_id)
@@ -216,7 +216,7 @@ async def update_profile(
                 if not is_email_valid(email):
                     return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid email format"})
 
-                id_field = users.u_id if user_type == "user" else admin.a_id
+                id_field = Users.u_id if user_type == "user" else Admin.a_id
                 existing = session.exec(
                     select(db_model).where(db_model.email == email, id_field != user_id)
                 ).first()
@@ -264,7 +264,7 @@ async def add_product(
         raise HTTPException(status_code=403, detail="Not authorized to add products")
     new_pid = random.randint(100, 100000)
     with Session(engine) as session:
-      while session.exec(select(product).where(product.p_id == new_pid)).first():
+      while session.exec(select(Product).where(Product.p_id == new_pid)).first():
         new_pid = random.randint(100, 100000)
     
     image_url = None
@@ -277,7 +277,7 @@ async def add_product(
             f.write(await image.read())
         image_url = os.path.join('products', filename).replace('\\', '/')
 
-    new_product = product(
+    new_product = Product(
         p_id = new_pid,
         name=name,
         description=description,
@@ -296,7 +296,7 @@ async def add_product(
 @app.get("/products")
 def get_products():
     with Session(engine) as session:
-        products_list = session.exec(select(product)).all()
+        products_list = session.exec(select(Product)).all()
         if not products_list:
             return JSONResponse(content={"status": "error", "message": "No products found"}, status_code=404)
 
@@ -328,14 +328,14 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
 
     with Session(engine) as session:
         for item in items:
-            prod_obj = session.get(product,int(item['id'])) 
+            prod_obj = session.get(Product,int(item['id'])) 
             if prod_obj.stock < item['qty']:
                 raise HTTPException(status_code=400,detail=f'product-id:{item['id']} has no available ordered stock')
         esewa_pid = None
         if payment_method == "esewa":
             esewa_pid = generate_esewa_pid()
         for item in items:
-            prod_obj = session.get(product,int(item['id']))
+            prod_obj = session.get(Product,int(item['id']))
             newstock = prod_obj.stock - item['qty'] 
             prod_obj.stock = newstock 
             session.add(prod_obj) 
@@ -375,7 +375,7 @@ def get_product(data_dict = Body(...)):
         raise HTTPException(status_code=400, detail="Product ID is required")
 
     with Session(engine) as session:
-        product_obj = session.get(product, p_id)
+        product_obj = session.get(Product, p_id)
         if not product_obj:
             raise HTTPException(status_code=404, detail="Product not found")
 
@@ -401,7 +401,7 @@ def update_product(
         raise HTTPException(status_code=403, detail="Not authorized to update products")
 
     with Session(engine) as session:
-        product_obj = session.get(product, p_id)
+        product_obj = session.get(Product, p_id)
         if not product_obj:
             raise HTTPException(status_code=404, detail="Product not found")
 
@@ -439,7 +439,7 @@ def get_stock(
         raise HTTPException(status_code=403, detail="Not authorized to add/deduct product's stock") 
     pid = data_dict.get('pid')
     with Session(engine) as session:
-        product_obj = session.get(product,pid) 
+        product_obj = session.get(Product,pid) 
         if not product_obj:
             raise HTTPException(status_code=404, detail="Product not found")
         stock = product_obj.stock
@@ -456,7 +456,7 @@ def edit_stock(
     qty = int(data_dict['stock'])
     fixer = data_dict.get('fixer') 
     with Session(engine) as session:
-        product_obj = session.get(product,pid) 
+        product_obj = session.get(Product,pid) 
         if not product_obj:
             raise HTTPException(status_code=404, detail="Product not found.")
         stock = product_obj.stock
@@ -488,7 +488,7 @@ def delete_product(
         orderitems = session.query(OrderItem).filter(OrderItem.product_id == pid).first()
         if orderitems:
           raise HTTPException(status_code=400, detail="Product cannot be deleted because it is linked to orders")
-        product_obj = session.get(product,pid) 
+        product_obj = session.get(Product,pid) 
         if not product_obj:
             raise HTTPException(status_code=404, detail="Product not found")
         session.delete(product_obj) 
