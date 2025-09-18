@@ -476,6 +476,45 @@ def edit_stock(
         session.refresh(product_obj) 
     return {'status':'success','message':'Stock updated successfully','oldstock':stock,'newstock':newstock}
 
+@app.get("/my_orders")
+def get_user_orders(current_info=Depends(get_current_user)):
+    user_obj = current_info["user"]
+    with Session(engine) as session:
+        orders = session.exec(
+            select(Order).where(Order.user_id == user_obj.u_id)
+        ).all()
+
+        results = []
+        for order in orders:
+            items = session.exec(
+                select(OrderItem).where(OrderItem.order_id == order.o_id)
+            ).all()
+            results.append({
+                "id": order.o_id,
+                "status": order.status,
+                "total_amount": order.total_amount,
+                "date": order.order_date_time,
+                "location": order.location_url,
+                "delivery": order.delivery,
+                "items": [
+                    {"product_id": i.product_id, "quantity": i.quantity, "price": i.price}
+                    for i in items
+                ]
+            })
+
+        return {"orders": results}
+
+@app.post("/order_items")
+def get_order_items(payload: dict, current_info=Depends(get_current_user)):
+    order_id = payload.get("order_id")
+    if not order_id:
+        return {"status": "error", "message": "order_id required"}
+
+    with Session(engine) as session:
+        items = session.exec(
+            select(OrderItem).where(OrderItem.order_id == order_id)
+        ).all()
+    return {"items": items}
 @app.post('/delete_product') 
 def delete_product(
     data_dict=Body(...),
