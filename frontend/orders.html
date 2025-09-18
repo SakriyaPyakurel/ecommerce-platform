@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Orders</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <header class="bg-[#5861E6] text-white p-4 shadow">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <h1 class="text-lg font-semibold">My Orders</h1>
+      <a href="home.html" class="bg-white text-[#5861E6] px-3 py-1 rounded">Home</a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-6">
+    <div id="messages" class="mb-4"></div>
+    <section id="orders-container" class="space-y-4"></section>
+    <div id="loading" class="text-center text-gray-500 mt-8">Loading orders...</div>
+  </main>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    if (!user) {
+      location.replace("index.html");
+    }
+
+    const API_BASE = "http://127.0.0.1:8000"; 
+    const ordersContainer = document.getElementById("orders-container");
+    const loadingEl = document.getElementById("loading");
+    const messagesEl = document.getElementById("messages");
+
+    function showMessage(msg, type = "info") {
+      messagesEl.innerHTML = `
+        <div class="p-3 rounded ${type === 'error' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+          ${msg}
+        </div>
+      `;
+      setTimeout(() => messagesEl.innerHTML = "", 4000);
+    }
+
+    async function fetchOrders() {
+      const res = await fetch(`${API_BASE}/my_orders`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Accept": "application/json" }
+      });
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("Unauthorized - please login again.");
+      }
+      const data = await res.json();
+      return data.orders || [];
+    }
+
+    async function fetchOrderItems(orderId) {
+      const res = await fetch(`${API_BASE}/order_items`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: orderId })
+      });
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("Unauthorized - please login again.");
+      }
+      const data = await res.json();
+      return data.items || [];
+    }
+
+    async function cancelOrder(orderId, cardEl) {
+      if (!confirm("Cancel this order?")) return;
+      try {
+        const res = await fetch(`${API_BASE}/cancel_order`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: orderId })
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          showMessage("Order cancelled successfully.");
+          cardEl.querySelector(".order-status").textContent = "Cancelled";
+          cardEl.querySelector(".cancel-btn").disabled = true;
+        } else {
+          showMessage("Failed to cancel: " + (data.message || "Unknown error"), "error");
+        }
+      } catch (err) {
+        showMessage("Error cancelling order", "error");
+      }
+    }
+
+    function renderOrderCard(order) {
+      const card = document.createElement("article");
+      card.className = "bg-white p-4 rounded shadow";
+
+      const orderDate = order.date ? new Date(order.date).toLocaleString() : "N/A";
+      const status = order.status || "Unknown";
+      const delivery = order.delivery || "N/A";
+      const total = order.total_amount || 0;
+      const oid = order.id;
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-sm text-gray-500">Order # <strong>${oid}</strong></div>
+            <div class="text-sm text-gray-500">Placed: ${orderDate}</div>
+            <div class="mt-2 text-lg font-semibold">Rs. ${total.toFixed(2)}</div>
+            <div class="text-sm mt-1">Method: <span class="font-medium">${delivery}</span></div>
+            <div class="text-sm mt-1">Status: <span class="order-status font-medium">${status}</span></div>
+            ${order.location ? `<div class="mt-2"><a target="_blank" rel="noopener" href="${order.location}" class="text-indigo-600 underline text-sm">Open delivery location</a></div>` : ""}
+          </div>
+
+          <div class="text-right space-y-2">
+            <button class="view-items bg-gray-100 px-3 py-1 rounded text-sm">View Details</button>
+            ${status.toLowerCase() === 'pending' ? `<button class="cancel-btn bg-red-500 text-white px-3 py-1 rounded text-sm">Cancel</button>` : `<button class="cancel-btn bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm" disabled>Cancel</button>`}
+          </div>
+        </div>
+
+        <div class="mt-3 order-items hidden border-t pt-3"></div>
+      `;
+
+      const viewBtn = card.querySelector(".view-items");
+      const itemsContainer = card.querySelector(".order-items");
+      viewBtn.onclick = async () => {
+        if (!itemsContainer.classList.contains("hidden")) {
+          itemsContainer.classList.add("hidden");
+          viewBtn.textContent = "View Details";
+          return;
+        }
+        viewBtn.textContent = "Hide Details";
+        itemsContainer.classList.remove("hidden");
+        itemsContainer.innerHTML = '<div class="text-sm text-gray-500">Loading items...</div>';
+        const items = await fetchOrderItems(oid);
+        renderItemsList(items, itemsContainer);
+      };
+
+      const cancelBtn = card.querySelector(".cancel-btn");
+      cancelBtn.onclick = () => cancelOrder(oid, card);
+
+      return card;
+    }
+
+    function renderItemsList(items, container) {
+      container.innerHTML = "";
+      if (!items.length) {
+        container.innerHTML = `<div class="text-sm text-gray-500">No items found.</div>`;
+        return;
+      }
+      items.forEach(it => {
+        const name = it.name || it.product_name || `Product #${it.product_id}`;
+        const desc = it.description || it.product_description || "";
+        const qty = it.quantity || 1;
+        const price = it.price || 0;
+        const media = it.media || it.image || it.img || "assets/default-product.png";
+
+        const itemEl = document.createElement("div");
+        itemEl.className = "flex items-center gap-4 py-3 border-b last:border-b-0";
+        itemEl.innerHTML = `
+          <img src="${media}" class="w-16 h-16 object-cover rounded" />
+          <div class="flex-1">
+            <div class="font-medium">${name}</div>
+            <div class="text-sm text-gray-500">${desc}</div>
+            <div class="text-sm text-gray-500">Rs. ${price} × ${qty}</div>
+          </div>
+          <div class="text-sm font-semibold">Rs. ${(price * qty).toFixed(2)}</div>
+        `;
+        container.appendChild(itemEl);
+      });
+    }
+
+    async function loadOrders() {
+      loadingEl.style.display = "block";
+      ordersContainer.innerHTML = "";
+      try {
+        const orders = await fetchOrders();
+        if (!orders.length) {
+          ordersContainer.innerHTML = `<div class="bg-white p-4 rounded shadow text-center text-gray-600">No orders found.</div>`;
+        } else {
+          orders.forEach(o => ordersContainer.appendChild(renderOrderCard(o)));
+        }
+      } catch (err) {
+        showMessage(err.message, "error");
+        setTimeout(() => location.replace("index.html"), 1500);
+      } finally {
+        loadingEl.style.display = "none";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadOrders);
+  </script>
+</body>
+</html>
