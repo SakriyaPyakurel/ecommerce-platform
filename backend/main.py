@@ -477,44 +477,43 @@ def edit_stock(
     return {'status':'success','message':'Stock updated successfully','oldstock':stock,'newstock':newstock}
 
 @app.get("/my_orders")
-def get_user_orders(current_info=Depends(get_current_user)):
-    user_obj = current_info["user"]
-    with Session(engine) as session:
-        orders = session.exec(
-            select(Order).where(Order.user_id == user_obj.u_id)
-        ).all()
+def get_user_orders(current_user=Depends(get_current_user)):
+    if current_user["type"] != "user":
+        raise HTTPException(status_code=403, detail="Not authorized")
 
-        results = []
-        for order in orders:
-            items = session.exec(
-                select(OrderItem).where(OrderItem.order_id == order.o_id)
-            ).all()
-            results.append({
-                "id": order.o_id,
-                "status": order.status,
-                "total_amount": order.total_amount,
-                "date": order.order_date_time,
-                "location": order.location_url,
-                "delivery": order.delivery,
-                "items": [
-                    {"product_id": i.product_id, "quantity": i.quantity, "price": i.price}
-                    for i in items
-                ]
+    user_id = current_user["user"].u_id
+
+    with Session(engine) as session:
+        query = (
+            select(Order, OrderItem, Product)
+            .join(OrderItem, OrderItem.order_id == Order.o_id)
+            .join(Product, Product.p_id == OrderItem.product_id)
+            .where(Order.user_id == user_id)
+        )
+        results = session.exec(query).all()
+
+        orders_dict = {}
+        for order, orderitem, product in results:
+            if order.o_id not in orders_dict:
+                orders_dict[order.o_id] = {
+                    "id": order.o_id,
+                    "status": order.status,
+                    "date": order.order_date_time.isoformat() if order.order_date_time else None,
+                    "delivery": order.delivery,
+                    "total_amount": order.total_amount,
+                    "location": order.location_url,
+                    "items": []
+                }
+            orders_dict[order.o_id]["items"].append({
+                "name": product.name,
+                "description": product.description,
+                "media": product.media,
+                "price": product.price,
+                "quantity": orderitem.quantity,
             })
 
-        return {"orders": results}
+    return {"orders": list(orders_dict.values())}
 
-@app.post("/order_items")
-def get_order_items(payload: dict, current_info=Depends(get_current_user)):
-    order_id = payload.get("order_id")
-    if not order_id:
-        return {"status": "error", "message": "order_id required"}
-
-    with Session(engine) as session:
-        items = session.exec(
-            select(OrderItem).where(OrderItem.order_id == order_id)
-        ).all()
-    return {"items": items}
 @app.post('/delete_product') 
 def delete_product(
     data_dict=Body(...),
