@@ -12,9 +12,9 @@ from itsdangerous import URLSafeSerializer, BadSignature
 from sqlmodel import create_engine, Session, select
 from input_params import credentials
 import uuid
-from models import Users, Admin , Product , Order, OrderItem
+from models import Users, Admin , Product , Order, OrderItem, CancelledOrder,CancelledOrderItem,AuditLog
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime,timezone
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -532,6 +532,78 @@ def delete_product(
         session.delete(product_obj) 
         session.commit() 
     return {'status':'success','message':'Product deleted successfully'}
+
+@app.post("/cancel_order")
+def cancel_order(
+    data: dict = Body(...),
+    current_user=Depends(get_current_user)
+):
+    if current_user["type"] != "user":
+        raise HTTPException(status_code=403, detail="Only users can cancel orders")
+
+    order_id = data.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Order ID is required")
+
+    with Session(engine) as session:
+        # Fetch order
+        order = session.exec(
+            select(Order).where(Order.o_id == order_id, Order.user_id == current_user["user"].u_id)
+        ).first()
+
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        if order.status.lower() in ["cancelled", "completed"]:
+            return {"status": "failed", "message": f"Order already {order.status}"}
+
+        # Fetch order items
+        order_items = session.exec(
+            select(OrderItem).where(OrderItem.order_id == order.o_id)
+        ).all()
+
+        # Create CancelledOrder record
+        cancelled_order = CancelledOrder(
+            o_id=order.o_id,
+            user_id=order.user_id,
+            cancel_date_time=datetime.now(timezone.utc),
+            reason=data.get("reason")  # optional
+        )
+        session.add(cancelled_order)
+        session.commit()
+        session.refresh(cancelled_order)
+
+        # Copy items into CancelledOrderItem
+        for item in order_items:
+            cancelled_item = CancelledOrderItem(
+                co_id=cancelled_order.co_id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                price=item.price
+            )
+            session.add(cancelled_item)
+
+        # Update original order status
+        order.status = "Cancelled"
+        session.add(order)
+
+        # Audit log
+        audit = AuditLog(
+            entity="Order",
+            entity_id=order.o_id,
+            action="Cancel",
+            performed_by=current_user["user"].u_id,
+            details=f"Order {order.o_id} cancelled"
+        )
+        session.add(audit)
+
+        session.commit()
+
+        return {
+            "status": "success",
+            "message": "Order cancelled successfully",
+            "order_id": order.o_id
+        }
 
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
