@@ -546,7 +546,6 @@ def cancel_order(
         raise HTTPException(status_code=400, detail="Order ID is required")
 
     with Session(engine) as session:
-        # Fetch order
         order = session.exec(
             select(Order).where(Order.o_id == order_id, Order.user_id == current_user["user"].u_id)
         ).first()
@@ -557,12 +556,10 @@ def cancel_order(
         if order.status.lower() in ["cancelled", "completed"]:
             return {"status": "failed", "message": f"Order already {order.status}"}
 
-        # Fetch order items
         order_items = session.exec(
             select(OrderItem).where(OrderItem.order_id == order.o_id)
         ).all()
 
-        # Create CancelledOrder record
         cancelled_order = CancelledOrder(
             o_id=order.o_id,
             user_id=order.user_id,
@@ -573,7 +570,6 @@ def cancel_order(
         session.commit()
         session.refresh(cancelled_order)
 
-        # Copy items into CancelledOrderItem
         for item in order_items:
             cancelled_item = CancelledOrderItem(
                 co_id=cancelled_order.co_id,
@@ -583,11 +579,9 @@ def cancel_order(
             )
             session.add(cancelled_item)
 
-        # Update original order status
         order.status = "Cancelled"
         session.add(order)
 
-        # Audit log
         audit = AuditLog(
             entity="Order",
             entity_id=order.o_id,
@@ -604,6 +598,28 @@ def cancel_order(
             "message": "Order cancelled successfully",
             "order_id": order.o_id
         }
+    
+@app.get("/audit_logs")
+def get_audit_logs(current_user=Depends(get_current_user)):
+    if current_user["type"] != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    with Session(engine) as session:
+        logs = session.exec(select(AuditLog).order_by(AuditLog.timestamp.desc())).all()
+
+        logs_list = []
+        for log in logs:
+            logs_list.append({
+                "id": log.id,
+                "entity": log.entity,
+                "entity_id": log.entity_id,
+                "action": log.action,
+                "performed_by": log.performed_by,
+                "timestamp": log.timestamp.isoformat(),
+                "details": log.details,
+            })
+
+    return {"logs": logs_list}
 
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
