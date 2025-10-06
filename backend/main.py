@@ -609,12 +609,16 @@ def get_audit_logs(current_user=Depends(get_current_user)):
 
         logs_list = []
         for log in logs:
+            if session.exec(select(Users.username).where(Users.u_id == log.performed_by)).first() is not None:
+                performed_by_name = session.exec(select(Users.username).where(Users.u_id == log.performed_by)).first() 
+            elif session.exec(select(Admin.username).where(Admin.a_id == log.performed_by)).first() is not None:
+                performed_by_name = session.exec(select(Admin.username).where(Admin.a_id == log.performed_by)).first()
             logs_list.append({
                 "id": log.id,
                 "entity": log.entity,
                 "entity_id": log.entity_id,
                 "action": log.action,
-                "performed_by": log.performed_by,
+                "performed_by": str(log.performed_by)+" ("+performed_by_name+")",
                 "timestamp": log.timestamp.isoformat(),
                 "details": log.details,
             })
