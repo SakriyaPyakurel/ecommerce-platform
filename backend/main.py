@@ -625,6 +625,49 @@ def get_audit_logs(current_user=Depends(get_current_user)):
 
     return {"logs": logs_list}
 
+@app.get("/all_orders")
+def get_all_orders(current_user=Depends(get_current_user)):
+    if current_user["type"] != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    with Session(engine) as session:
+        query = (
+            select(Order, OrderItem, Product, Users)
+            .join(OrderItem, OrderItem.order_id == Order.o_id)
+            .join(Product, Product.p_id == OrderItem.product_id)
+            .join(Users, Users.u_id == Order.user_id)
+        )
+        results = session.exec(query).all()
+
+        orders_dict = {}
+        for order, item, product, user in results:
+            if order.o_id not in orders_dict:
+                orders_dict[order.o_id] = {
+                    "id": order.o_id,
+                    "status": order.status,
+                    "date": order.order_date_time.isoformat(),
+                    "delivery": order.delivery,
+                    "total_amount": order.total_amount,
+                    "location": order.location_url,
+                    "user": {
+                        "username": user.username,
+                        "email": user.email,
+                        "id": user.u_id,
+                    },
+                    "items": [],
+                }
+
+            orders_dict[order.o_id]["items"].append({
+                "name": product.name,
+                "description": product.description,
+                "price": product.price,
+                "quantity": item.quantity,
+                "media": product.media,
+            })
+
+        return {"orders": list(orders_dict.values())}
+
+
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
     form = await request.form()
