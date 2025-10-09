@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Orders (Admin)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+  <h1 class="text-3xl font-bold mb-6">All Orders</h1>
+
+  <div class="w-1/3 text-center mb-6">
+    <a href="home.html" class="bg-white text-[#5861E6] px-3 py-1 rounded font-medium">Home</a>
+  </div>
+
+  <div id="ordersContainer" class="w-full max-w-5xl space-y-6"></div>
+
+  <script>
+    async function fetchAllOrders() {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/all_orders", {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error("Failed to fetch all orders");
+        const data = await response.json();
+        renderOrders(data.orders || []);
+      } catch (err) {
+        console.error("Error fetching all orders:", err);
+        document.getElementById("ordersContainer").innerHTML =
+          '<p class="text-red-500">Failed to load all orders.</p>';
+      }
+    }
+
+    function renderOrders(orders) {
+      const container = document.getElementById("ordersContainer");
+      container.innerHTML = "";
+
+      if (!orders.length) {
+        container.innerHTML = '<p class="text-gray-500">No orders found.</p>';
+        return;
+      }
+
+      orders.forEach((order) => {
+        const card = document.createElement("div");
+        card.className = "bg-white shadow-md rounded-lg p-6";
+
+        const dateStr = order.date ? new Date(order.date).toLocaleString() : "N/A";
+        const userInfo = order.user
+          ? `${order.user.username} (${order.user.email})`
+          : "Unknown User";
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-semibold">Order #${order.id}</h2>
+            <span class="px-3 py-1 rounded-full text-sm ${
+              order.status === "Pending" ? "bg-yellow-200 text-yellow-800" :
+              order.status === "Cancelled" ? "bg-red-200 text-red-800" :
+              "bg-green-200 text-green-800"
+            }">${order.status}</span>
+          </div>
+
+          <p class="text-gray-600 text-sm mt-2"><strong>Placed by:</strong> ${userInfo}</p>
+          <p class="text-gray-600 text-sm">Date: ${dateStr}</p>
+          <p class="text-gray-600 text-sm">Delivery: ${order.delivery || "N/A"}</p>
+          <p class="text-gray-600 text-sm">Total: Rs. ${order.total_amount || 0}</p>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button class="view-items bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">View Details</button>
+            ${
+              order.location
+                ? `<a href="${order.location}" target="_blank" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">View Location</a>`
+                : ""
+            }
+          </div>
+
+          <div class="items-container hidden mt-4"></div>
+        `;
+
+        const viewBtn = card.querySelector(".view-items");
+        const itemsContainer = card.querySelector(".items-container");
+        viewBtn.onclick = () => {
+          if (!itemsContainer.classList.contains("hidden")) {
+            itemsContainer.classList.add("hidden");
+            viewBtn.textContent = "View Details";
+            return;
+          }
+          viewBtn.textContent = "Hide Details";
+          itemsContainer.classList.remove("hidden");
+
+          if (order.items && order.items.length) {
+            renderItemsList(order.items, itemsContainer);
+          } else {
+            itemsContainer.innerHTML =
+              '<div class="text-sm text-gray-500">No item details available.</div>';
+          }
+        };
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderItemsList(items, container) {
+      container.innerHTML = "";
+      items.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "flex items-center gap-4 border-b py-3";
+
+        div.innerHTML = `
+          <img src="${item.media || "https://via.placeholder.com/100"}"
+               alt="${item.name}"
+               class="w-16 h-16 object-cover rounded" />
+          <div class="flex-1">
+            <h3 class="font-medium">${item.name}</h3>
+            <p class="text-sm text-gray-500">${item.description || ""}</p>
+            <p class="text-sm text-gray-600">Quantity: ${item.quantity}</p>
+          </div>
+          <p class="font-semibold">Rs. ${item.price}</p>
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+    fetchAllOrders();
+  </script>
+</body>
+</html>
