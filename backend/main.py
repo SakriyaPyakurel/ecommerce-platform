@@ -73,12 +73,12 @@ def get_current_user(request: Request):
             user = session.exec(select(Users).where(Users.u_id == user_id)).first()
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
-            return {"user": user, "type": "user"}
+            return {"user": user, "type": "user", 'id':user_id}
         elif admin_id:
             admin_user = session.exec(select(Admin).where(Admin.a_id == admin_id)).first()
             if not admin_user:
                 raise HTTPException(status_code=404, detail="Admin not found")
-            return {"user": admin_user, "type": "admin"}
+            return {"user": admin_user, "type": "admin",'id':admin_id}
         else:
             raise HTTPException(status_code=401, detail="Invalid session")
 
@@ -138,7 +138,9 @@ def login(user: credentials):
         return response
     
 @app.post("/add_admin")
-def add_admin(user: credentials):
+def add_admin(user: credentials,current_user=Depends(get_current_user)):
+    if current_user["type"] == "user":
+      raise HTTPException(status_code=403, detail="Unauthorized")
     if not is_email_valid(user.email):
         return {"status": "error", "message": "Invalid email format"}
     if not is_password_valid(user.password):
@@ -159,7 +161,14 @@ def add_admin(user: credentials):
             password=hash_password(user.password),
             image="assets/default_admin.png"
         )
-        session.add(new_admin)
+        audit = AuditLog(
+            entity="Admin",
+            entity_id=new_admin.a_id,
+            action="Create",
+            performed_by=current_user['id'],
+            details=f"Admin {new_admin.a_id} created"
+        )
+        session.add_all([new_admin,audit])
         session.commit()
         session.refresh(new_admin)
 
@@ -168,6 +177,7 @@ def add_admin(user: credentials):
 
 @app.post("/profile")
 def get_profile(current_info=Depends(get_current_user)):
+    print("DEBUG get_current_user returned:", current_info, type(current_info))
     user_obj = current_info["user"]
     user_type = current_info["type"]
 
@@ -285,9 +295,16 @@ async def add_product(
         media=image_url,
         stock=quantity
     )
+    audit = AuditLog(
+        entity="Product",
+        entity_id=new_product.p_id,
+        action="Create",
+        performed_by=current_user["id"],
+        details=f"Product {new_product.p_id} created"
+    )
 
     with Session(engine) as session:
-        session.add(new_product)
+        session.add_all([new_product,audit])
         session.commit()
         session.refresh(new_product)
 
@@ -421,8 +438,14 @@ def update_product(
             with open(full_path,'wb') as f:
                 f.write(image.file.read())
             product_obj.media = os.path.join('products', filename).replace('\\', '/')
-
-        session.add(product_obj)
+        audit = AuditLog(
+            entity="Product",
+            entity_id=product_obj.p_id,
+            action="Update",
+            performed_by=current_user["id"],
+            details=f"Product {product_obj.p_id} updated"
+        )
+        session.add_all([product_obj,audit])
         session.commit()
         session.refresh(product_obj)
 
@@ -461,19 +484,29 @@ def edit_stock(
             raise HTTPException(status_code=404, detail="Product not found.")
         stock = product_obj.stock
         newstock = None
+        operation = None
         if fixer == '+':
             newstock = stock+qty
+            operation = 'added'
         elif fixer == '-':
             if stock<qty:
               raise HTTPException(status_code=404, detail="Invalid quantity supplied.") 
             else:
                 newstock = stock-qty
+                operation = 'deducted'
         else:
             raise HTTPException(status_code=404, detail="Cannot update product stock.")
         product_obj.stock = newstock
-        session.add(product_obj) 
-        session.commit() 
-        session.refresh(product_obj) 
+        audit = AuditLog(
+            entity="Product",
+            entity_id=product_obj.p_id,
+            action="Stock Update",
+            performed_by=current_user["id"],
+            details=f"Stock {operation} by {qty}. Old stock: {stock}, New stock: {newstock}"
+        )
+        session.add_all([product_obj,audit]) 
+        session.commit()
+        session.refresh(product_obj)
     return {'status':'success','message':'Stock updated successfully','oldstock':stock,'newstock':newstock}
 
 @app.get("/my_orders")
@@ -514,24 +547,43 @@ def get_user_orders(current_user=Depends(get_current_user)):
 
     return {"orders": list(orders_dict.values())}
 
-@app.post('/delete_product') 
+@app.post('/delete_product')
 def delete_product(
     data_dict=Body(...),
     current_user=Depends(get_current_user)
-    ):
+):
     if current_user['type'] == 'user':
-        raise HTTPException(status_code=403, detail="Not authorized to delete products") 
-    pid = data_dict.get('pid')
+        raise HTTPException(status_code=403, detail="Not authorized to delete products")
+
+    pid = int(data_dict.get('pid'))
+
     with Session(engine) as session:
         orderitems = session.query(OrderItem).filter(OrderItem.product_id == pid).first()
         if orderitems:
-          raise HTTPException(status_code=400, detail="Product cannot be deleted because it is linked to orders")
-        product_obj = session.get(Product,pid) 
+            raise HTTPException(
+                status_code=400,
+                detail="Product cannot be deleted because it is linked to existing orders"
+            )
+
+        product_obj = session.get(Product, pid)
         if not product_obj:
             raise HTTPException(status_code=404, detail="Product not found")
-        session.delete(product_obj) 
-        session.commit() 
-    return {'status':'success','message':'Product deleted successfully'}
+
+        pid_value = product_obj.p_id  
+        session.delete(product_obj)
+
+        audit = AuditLog(
+            entity="Product",
+            entity_id=pid_value,
+            action="Delete",
+            performed_by=current_user["id"],  
+            details=f"Product {pid_value} deleted"
+        )
+
+        session.add(audit)
+        session.commit()
+
+    return {'status': 'success', 'message': 'Product deleted successfully'}
 
 @app.post("/cancel_order")
 def cancel_order(
