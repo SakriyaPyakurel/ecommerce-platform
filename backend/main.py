@@ -718,6 +718,43 @@ def get_all_orders(current_user=Depends(get_current_user)):
             })
 
         return {"orders": list(orders_dict.values())}
+    
+@app.post("/mark_delivered")
+def mark_delivered(data: dict = Body(...), current_user=Depends(get_current_user)):
+    # Only admin can deliver
+    if current_user["type"] != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can update order status")
+
+    order_id = data.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Order ID required")
+
+    with Session(engine) as session:
+        order = session.get(Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        if order.status != "Pending":
+            raise HTTPException(status_code=400, detail="Order already processed")
+
+        old_status = order.status
+        order.status = "Delivered"
+
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+
+        audit = AuditLog(
+            entity="Order",
+            entity_id=order.id,
+            action="Order Status Update",
+            performed_by=current_user["id"],
+            details=f"Order {order.id} marked as Delivered)"
+        )
+        session.add(audit)
+        session.commit()
+
+        return {"status": "success", "message": "Order marked as delivered"}
 
 
 @app.post("/esewa_success")
