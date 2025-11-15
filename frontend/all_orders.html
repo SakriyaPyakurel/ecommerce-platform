@@ -54,9 +54,10 @@
           <div class="flex justify-between items-center">
             <h2 class="text-xl font-semibold">Order #${order.id}</h2>
             <span class="px-3 py-1 rounded-full text-sm ${
-              order.status === "Pending" ? "bg-yellow-200 text-yellow-800" :
-              order.status === "Cancelled" ? "bg-red-200 text-red-800" :
-              "bg-green-200 text-green-800"
+              order.status === "Pending" ? "bg-yellow-200 text-white" :
+              order.status === "Cancelled" ? "bg-red-200 text-white" :
+              order.status === "Delivered" ? "bg-green-200 text-white":
+              "bg-gray-300 text-gray-800"
             }">${order.status}</span>
           </div>
 
@@ -73,6 +74,17 @@
                 : ""
             }
           </div>
+           ${
+              order.status === "Pending"
+                ? `<button class="deliver-btn bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700"
+                     data-id="${order.id}">
+                     Mark as Delivered
+                   </button>`
+                : ""
+            }
+          </div>
+
+          <div class="items-container hidden mt-4"></div>
 
           <div class="items-container hidden mt-4"></div>
         `;
@@ -95,9 +107,36 @@
               '<div class="text-sm text-gray-500">No item details available.</div>';
           }
         };
-
+         const deliverBtn = card.querySelector(".deliver-btn");
+        if (deliverBtn) {
+          deliverBtn.onclick = () => markDelivered(order.id);
+        }
         container.appendChild(card);
       });
+    }
+ async function markDelivered(orderId) {
+      if (!confirm("Mark this order as delivered?")) return;
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/mark_delivered", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: orderId }),
+        });
+
+        const data = await response.json();
+
+        if (data.status === "success") {
+          alert("Order marked as delivered!");
+          fetchAllOrders(); 
+        } else {
+          alert(data.message || "Failed to update order.");
+        }
+      } catch (error) {
+        alert("Error updating order.");
+        console.error(error);
+      }
     }
 
     function renderItemsList(items, container) {
