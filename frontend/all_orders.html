@@ -1,166 +1,254 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>All Orders (Admin)</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
-  <h1 class="text-3xl font-bold mb-6">All Orders</h1>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold">All Orders (Admin)</h1>
+      <a href="home.html" class="bg-white text-[#5861E6] px-3 py-1 rounded shadow">Home</a>
+    </div>
 
-  <div class="w-1/3 text-center mb-6">
-    <a href="home.html" class="bg-white text-[#5861E6] px-3 py-1 rounded font-medium">Home</a>
+    <div class="mb-4 flex items-center gap-4">
+      <label class="font-medium">Filter:</label>
+      <select id="filterSelect" class="p-2 border rounded bg-white">
+        <option value="all">All</option>
+        <option value="pending">Pending</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="archived">Archived</option>
+      </select>
+
+      <button id="refreshBtn" class="ml-auto bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">Refresh</button>
+    </div>
+
+    <div id="ordersContainer" class="space-y-4"></div>
+    <div id="statusMsg" class="mt-4 text-sm text-gray-600"></div>
   </div>
 
-  <div id="ordersContainer" class="w-full max-w-5xl space-y-6"></div>
-
   <script>
+  
+    let ALL_ORDERS = [];
+
+  
     async function fetchAllOrders() {
+      setStatus("Loading orders...");
       try {
-        const response = await fetch("http://127.0.0.1:8000/all_orders", {
+        const res = await fetch("http://127.0.0.1:8000/all_orders", {
           method: "GET",
-          credentials: "include",
+          credentials: "include"
         });
-        if (!response.ok) throw new Error("Failed to fetch all orders");
-        const data = await response.json();
-        renderOrders(data.orders || []);
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("fetch /all_orders failed", res.status, text);
+          setStatus("Failed to fetch orders. See console.");
+          return;
+        }
+
+        const data = await res.json();
+
+        ALL_ORDERS = data.orders || [];
+        console.log("Fetched orders:", ALL_ORDERS);
+        setStatus(`Loaded ${ALL_ORDERS.length} orders`);
+        renderFilteredOrders();
       } catch (err) {
-        console.error("Error fetching all orders:", err);
-        document.getElementById("ordersContainer").innerHTML =
-          '<p class="text-red-500">Failed to load all orders.</p>';
+        console.error("Error fetching orders:", err);
+        setStatus("Error fetching orders. See console.");
       }
     }
 
-    function renderOrders(orders) {
+    function setStatus(msg) {
+      document.getElementById("statusMsg").textContent = msg || "";
+    }
+
+    function renderFilteredOrders() {
+      const filter = (document.getElementById("filterSelect").value || "all").toLowerCase();
       const container = document.getElementById("ordersContainer");
       container.innerHTML = "";
 
-      if (!orders.length) {
-        container.innerHTML = '<p class="text-gray-500">No orders found.</p>';
+      const filtered = ALL_ORDERS.filter(order => {
+        const status = String(order.status || "").toLowerCase();
+        if (filter === "all") return true;
+        if (filter === "archived") return status === "archived";
+        return status === filter;
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = `<p class="text-gray-600">No orders found for "${filter}".</p>`;
         return;
       }
 
-      orders.forEach((order) => {
-        const card = document.createElement("div");
-        card.className = "bg-white shadow-md rounded-lg p-6";
-
-        const dateStr = order.date ? new Date(order.date).toLocaleString() : "N/A";
-        const userInfo = order.user
-          ? `${order.user.username} (${order.user.email})`
-          : "Unknown User";
-
-        card.innerHTML = `
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-semibold">Order #${order.id}</h2>
-            <span class="px-3 py-1 rounded-full text-sm ${
-              order.status === "Pending" ? "bg-yellow-200 text-white" :
-              order.status === "Cancelled" ? "bg-red-200 text-white" :
-              order.status === "Delivered" ? "bg-green-200 text-white":
-              "bg-gray-300 text-gray-800"
-            }">${order.status}</span>
-          </div>
-
-          <p class="text-gray-600 text-sm mt-2"><strong>Placed by:</strong> ${userInfo}</p>
-          <p class="text-gray-600 text-sm">Date: ${dateStr}</p>
-          <p class="text-gray-600 text-sm">Delivery: ${order.delivery || "N/A"}</p>
-          <p class="text-gray-600 text-sm">Total: Rs. ${order.total_amount || 0}</p>
-
-          <div class="mt-4 flex flex-wrap gap-2">
-            <button class="view-items bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">View Details</button>
-            ${
-              order.location
-                ? `<a href="${order.location}" target="_blank" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">View Location</a>`
-                : ""
-            }
-          </div>
-           ${
-              order.status === "Pending"
-                ? `<button class="deliver-btn bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700"
-                     data-id="${order.id}">
-                     Mark as Delivered
-                   </button>`
-                : ""
-            }
-          </div>
-
-          <div class="items-container hidden mt-4"></div>
-
-          <div class="items-container hidden mt-4"></div>
-        `;
-
-        const viewBtn = card.querySelector(".view-items");
-        const itemsContainer = card.querySelector(".items-container");
-        viewBtn.onclick = () => {
-          if (!itemsContainer.classList.contains("hidden")) {
-            itemsContainer.classList.add("hidden");
-            viewBtn.textContent = "View Details";
-            return;
-          }
-          viewBtn.textContent = "Hide Details";
-          itemsContainer.classList.remove("hidden");
-
-          if (order.items && order.items.length) {
-            renderItemsList(order.items, itemsContainer);
-          } else {
-            itemsContainer.innerHTML =
-              '<div class="text-sm text-gray-500">No item details available.</div>';
-          }
-        };
-         const deliverBtn = card.querySelector(".deliver-btn");
-        if (deliverBtn) {
-          deliverBtn.onclick = () => markDelivered(order.id);
-        }
-        container.appendChild(card);
+      filtered.forEach(order => {
+        container.appendChild(renderOrderCard(order));
       });
     }
- async function markDelivered(orderId) {
-      if (!confirm("Mark this order as delivered?")) return;
 
-      try {
-        const response = await fetch("http://127.0.0.1:8000/mark_delivered", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order_id: orderId }),
-        });
+    function renderOrderCard(order) {
+      const statusLower = String(order.status || "").toLowerCase();
+      const statusClass =
+        statusLower === "pending" ? "bg-yellow-200 text-yellow-800" :
+        statusLower === "cancelled" ? "bg-red-200 text-red-800" :
+        statusLower === "delivered" ? "bg-green-200 text-green-800" :
+        statusLower === "archived" ? "bg-gray-200 text-gray-800" :
+        "bg-gray-200 text-gray-800";
 
-        const data = await response.json();
+      const card = document.createElement("div");
+      card.className = "bg-white rounded-lg shadow p-5 border";
 
-        if (data.status === "success") {
-          alert("Order marked as delivered!");
-          fetchAllOrders(); 
-        } else {
-          alert(data.message || "Failed to update order.");
-        }
-      } catch (error) {
-        alert("Error updating order.");
-        console.error(error);
+      const date = order.date ? (new Date(order.date).toLocaleString()) : (order.order_date || "N/A");
+      const user = order.user ? `${order.user.username} (${order.user.email})` : "Unknown";
+
+      // HTML
+      card.innerHTML = `
+        <div class="flex justify-between items-start gap-4">
+          <div>
+            <h3 class="text-lg font-semibold">Order #${order.id}</h3>
+            <p class="text-sm text-gray-600 mt-1"><strong>User:</strong> ${escapeHtml(user)}</p>
+            <p class="text-sm text-gray-600"><strong>Date:</strong> ${escapeHtml(date)}</p>
+            <p class="text-sm text-gray-600"><strong>Delivery:</strong> ${escapeHtml(order.delivery || "N/A")}</p>
+            <p class="text-sm text-gray-600"><strong>Total:</strong> Rs. ${escapeHtml(String(order.total_amount ?? order.total_price ?? 0))}</p>
+          </div>
+
+          <div class="text-right">
+            <span class="px-3 py-1 rounded-full text-sm ${statusClass}">${escapeHtml(order.status || "")}</span>
+            <div class="mt-3 space-x-2">
+              ${order.location ? `<a href="${escapeAttr(order.location)}" target="_blank" class="inline-block text-sm px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600">View Location</a>` : ""}
+              <button class="view-items inline-block text-sm px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">View Details</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="items-wrapper mt-4 hidden border-t pt-3"></div>
+
+        <div class="mt-3"></div>
+      `;
+
+      if (statusLower === "pending") {
+        const btnWrap = document.createElement("div");
+        btnWrap.className = "mt-3";
+        btnWrap.innerHTML = `<button class="mark-delivered bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700">Mark as Delivered</button>`;
+        card.querySelector("div.mt-3").appendChild(btnWrap);
       }
+
+      const viewBtn = card.querySelector(".view-items");
+      const itemsWrapper = card.querySelector(".items-wrapper");
+      viewBtn.addEventListener("click", () => {
+        if (!itemsWrapper.classList.contains("hidden")) {
+          itemsWrapper.classList.add("hidden");
+          viewBtn.textContent = "View Details";
+          return;
+        }
+        viewBtn.textContent = "Hide Details";
+        itemsWrapper.classList.remove("hidden");
+        renderItemsList(order.items || [], itemsWrapper);
+      });
+
+      const markBtn = card.querySelector(".mark-delivered");
+      if (markBtn) {
+        markBtn.addEventListener("click", async () => {
+          if (!confirm("Mark this order as delivered?")) return;
+          await markOrderDelivered(order.id, markBtn);
+        });
+      }
+
+      return card;
     }
 
     function renderItemsList(items, container) {
       container.innerHTML = "";
-      items.forEach((item) => {
+      if (!items.length) {
+        container.innerHTML = `<div class="text-sm text-gray-600">No items found.</div>`;
+        return;
+      }
+
+      items.forEach(i => {
         const div = document.createElement("div");
-        div.className = "flex items-center gap-4 border-b py-3";
-
+        div.className = "flex items-center gap-4 py-3 border-b";
         div.innerHTML = `
-          <img src="${item.media || "https://via.placeholder.com/100"}"
-               alt="${item.name}"
-               class="w-16 h-16 object-cover rounded" />
+          <img src="${escapeAttr(i.media || "https://via.placeholder.com/80")}" alt="${escapeHtml(i.name || '')}" class="w-16 h-16 object-cover rounded" />
           <div class="flex-1">
-            <h3 class="font-medium">${item.name}</h3>
-            <p class="text-sm text-gray-500">${item.description || ""}</p>
-            <p class="text-sm text-gray-600">Quantity: ${item.quantity}</p>
+            <div class="font-medium">${escapeHtml(i.name || '')}</div>
+            <div class="text-sm text-gray-500">${escapeHtml(i.description || "")}</div>
+            <div class="text-sm text-gray-600">Qty: ${escapeHtml(String(i.quantity || 0))}</div>
           </div>
-          <p class="font-semibold">Rs. ${item.price}</p>
+          <div class="font-semibold">Rs. ${escapeHtml(String(i.price ?? 0))}</div>
         `;
-
         container.appendChild(div);
       });
     }
 
+    async function markOrderDelivered(orderId, buttonEl) {
+ 
+      buttonEl.disabled = true;
+      const originalText = buttonEl.textContent;
+      buttonEl.textContent = "Processing...";
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/mark_delivered", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_id: orderId })
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          console.error("mark_delivered failed", res.status, txt);
+          alert("Failed to mark delivered. See console.");
+          buttonEl.disabled = false;
+          buttonEl.textContent = originalText;
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === "success") {
+  
+          const idx = ALL_ORDERS.findIndex(o => o.id === orderId || o.o_id === orderId);
+          if (idx !== -1) {
+            ALL_ORDERS[idx].status = "Delivered";
+          }
+          setStatus(`Order ${orderId} marked delivered.`);
+       
+          renderFilteredOrders();
+        } else {
+          alert(data.message || "Failed to update order");
+          setStatus("Server returned failure while updating order.");
+          buttonEl.disabled = false;
+          buttonEl.textContent = originalText;
+        }
+      } catch (err) {
+        console.error("Error marking delivered:", err);
+        alert("Error marking delivered. See console.");
+        buttonEl.disabled = false;
+        buttonEl.textContent = originalText;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+    function escapeAttr(str) {
+      return escapeHtml(str).replaceAll('"', "&quot;");
+    }
+
+   
+    document.getElementById("filterSelect").addEventListener("change", () => {
+      renderFilteredOrders();
+    });
+    document.getElementById("refreshBtn").addEventListener("click", () => fetchAllOrders());
+
+   
     fetchAllOrders();
   </script>
 </body>
