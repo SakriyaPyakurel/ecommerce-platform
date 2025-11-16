@@ -719,6 +719,42 @@ def get_all_orders(current_user=Depends(get_current_user)):
 
         return {"orders": list(orders_dict.values())}
     
+@app.post("/archive_order")
+def order_archive(data: dict = Body(...), current_user=Depends(get_current_user)): 
+    if current_user["type"] != "user":
+        raise HTTPException(status_code=403, detail="Only client can archive completed or cancelled orders")
+
+    order_id = data.get("order_id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Order ID required")
+
+    with Session(engine) as session:
+        order = session.get(Order, order_id)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        if order.status not in ["Delivered", "Cancelled"]:
+            raise HTTPException(status_code=400, detail="Only Delivered or Cancelled orders can be archived")
+
+        old_status = order.status
+        order.status = "Archived"
+
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+
+        audit = AuditLog(
+            entity="Order",
+            entity_id=order.o_id,
+            action="Order Archived",
+            performed_by=current_user["id"],
+            details=f"Order {order.o_id} archived from previous status: {old_status})"
+        )
+        session.add(audit)
+        session.commit()
+
+        return {"status": "success", "message": "Order archived successfully"}
+    
 @app.post("/mark_delivered")
 def mark_delivered(data: dict = Body(...), current_user=Depends(get_current_user)):
     # Only admin can deliver
