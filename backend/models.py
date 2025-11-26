@@ -23,6 +23,7 @@ class Product(SQLModel, table=True):
     price: float
     media: str
     stock: int = Field(default=0)
+    category: str
 
 class Order(SQLModel, table=True):
     o_id: Optional[int] = Field(default=None, primary_key=True)
@@ -33,6 +34,14 @@ class Order(SQLModel, table=True):
     location_url: Optional[str] = None
     delivery: str
     esewa_pid: Optional[str] = None
+
+class review(SQLModel, table=True):
+    r_id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.u_id")
+    product_id: int = Field(foreign_key="product.p_id")
+    rating: int
+    comment: Optional[str] = None
+    review_date_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class OrderItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

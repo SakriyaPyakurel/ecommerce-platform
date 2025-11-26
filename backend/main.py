@@ -15,6 +15,8 @@ import uuid
 from models import Users, Admin , Product , Order, OrderItem, CancelledOrder,CancelledOrderItem,AuditLog
 from pathlib import Path
 from datetime import datetime,timezone
+from keyword_extractor import KeywordExtractor
+import joblib
 
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -54,6 +56,8 @@ def generate_esewa_pid():
     date_str = datetime.now().strftime("%Y%m%d%H%M%S")
     unique_id = uuid.uuid4().hex[:6].upper()
     return f"ORD-{date_str}-{unique_id}"
+
+
 
 def get_current_user(request: Request):
     cookie = request.cookies.get("cookie")
@@ -177,7 +181,6 @@ def add_admin(user: credentials,current_user=Depends(get_current_user)):
 
 @app.post("/profile")
 def get_profile(current_info=Depends(get_current_user)):
-    print("DEBUG get_current_user returned:", current_info, type(current_info))
     user_obj = current_info["user"]
     user_type = current_info["type"]
 
@@ -286,6 +289,9 @@ async def add_product(
         with open(full_path,'wb') as f:
             f.write(await image.read())
         image_url = os.path.join('products', filename).replace('\\', '/')
+    
+    model = joblib.load('product_classification_model.pkl')
+    category = model.predict([description])[0]
 
     new_product = Product(
         p_id = new_pid,
@@ -293,7 +299,8 @@ async def add_product(
         description=description,
         price=price,
         media=image_url,
-        stock=quantity
+        stock=quantity,
+        category=category
     )
     audit = AuditLog(
         entity="Product",
@@ -347,7 +354,7 @@ def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_
         for item in items:
             prod_obj = session.get(Product,int(item['id'])) 
             if prod_obj.stock < item['qty']:
-                raise HTTPException(status_code=400,detail=f'product-id:{item['id']} has no available ordered stock')
+                raise HTTPException(status_code=400,detail=f'product-id:{item["id"]} has no available ordered stock')
         esewa_pid = None
         if payment_method == "esewa":
             esewa_pid = generate_esewa_pid()
@@ -543,6 +550,7 @@ def get_user_orders(current_user=Depends(get_current_user)):
                 "media": product.media,
                 "price": product.price,
                 "quantity": orderitem.quantity,
+                "category": product.category,
             })
 
     return {"orders": list(orders_dict.values())}
@@ -715,6 +723,7 @@ def get_all_orders(current_user=Depends(get_current_user)):
                 "price": product.price,
                 "quantity": item.quantity,
                 "media": product.media,
+                "category": product.category,
             })
 
         return {"orders": list(orders_dict.values())}
