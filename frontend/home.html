@@ -412,6 +412,9 @@ fetchAndDisplayProducts = async function (query = "") {
       <h3 class="font-bold text-sm">${product.name}</h3>
       <p class="text-xs">${product.description}</p>
       <p class="text-sm mt-1">Rs. ${product.price}</p>
+       <p class="text-xs mt-1 text-yellow-300 font-semibold">
+      ${product.category || "Uncategorized"}
+    </p>
       <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
       ${!isAdmin ? `<button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
         <i class="fa fa-shopping-cart text-white"></i>

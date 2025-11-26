@@ -103,7 +103,6 @@
       const date = order.date ? (new Date(order.date).toLocaleString()) : (order.order_date || "N/A");
       const user = order.user ? `${order.user.username} (${order.user.email})` : "Unknown";
 
-      // HTML
       card.innerHTML = `
         <div class="flex justify-between items-start gap-4">
           <div>
@@ -174,6 +173,9 @@
           <div class="flex-1">
             <div class="font-medium">${escapeHtml(i.name || '')}</div>
             <div class="text-sm text-gray-500">${escapeHtml(i.description || "")}</div>
+             <div class="text-xs text-yellow-600 font-semibold">
+      ${escapeHtml(i.category || "Uncategorized")}
+    </div>
             <div class="text-sm text-gray-600">Qty: ${escapeHtml(String(i.quantity || 0))}</div>
           </div>
           <div class="font-semibold">Rs. ${escapeHtml(String(i.price ?? 0))}</div>

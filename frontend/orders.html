@@ -208,6 +208,9 @@
           <div class="flex-1">
             <h3 class="font-medium">${item.name}</h3>
             <p class="text-sm text-gray-500">${item.description || ""}</p>
+            <div class="text-xs text-yellow-600 font-semibold">
+      ${escapeHtml(i.category || "Uncategorized")}
+    </div>
             <p class="text-sm text-gray-600">Quantity: ${item.quantity}</p>
           </div>
           <p class="font-semibold">Rs. ${item.price}</p>
