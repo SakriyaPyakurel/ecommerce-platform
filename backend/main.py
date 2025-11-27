@@ -24,11 +24,19 @@ serializer = URLSafeSerializer(SECRET_KEY)
 
 app = FastAPI()
 SAVE_DIR = Path("frontend/product")
-# SAVE_DIR.mkdir(parents=True, exist_ok=True)
+
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "product_classification_model.pkl"
+
+try:
+    model = joblib.load(MODEL_PATH)
+except Exception as e:
+    print(f"Error loading model: {e}")
+    model = None 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5500"],
+    allow_origins=["http://127.0.0.1:5500","http://localhost:5500"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -275,48 +283,59 @@ async def add_product(
 ):
     if current_user["type"] == "user":
         raise HTTPException(status_code=403, detail="Not authorized to add products")
-    new_pid = random.randint(100, 100000)
-    with Session(engine) as session:
-      while session.exec(select(Product).where(Product.p_id == new_pid)).first():
+
+    try:
         new_pid = random.randint(100, 100000)
-    
-    image_url = None
-    if image and image.filename:
-        save_dir = os.path.join('..','frontend','products') 
-        os.makedirs(save_dir,exist_ok=True)
-        filename = f"{new_pid}_{image.filename}"
-        full_path = os.path.join(save_dir, filename)
-        with open(full_path,'wb') as f:
-            f.write(await image.read())
-        image_url = os.path.join('products', filename).replace('\\', '/')
-    
-    model = joblib.load('product_classification_model.pkl')
-    category = model.predict([description])[0]
+        with Session(engine) as session:
+            while session.exec(select(Product).where(Product.p_id == new_pid)).first():
+                new_pid = random.randint(100, 100000)
 
-    new_product = Product(
-        p_id = new_pid,
-        name=name,
-        description=description,
-        price=price,
-        media=image_url,
-        stock=quantity,
-        category=category
-    )
-    audit = AuditLog(
-        entity="Product",
-        entity_id=new_product.p_id,
-        action="Create",
-        performed_by=current_user["id"],
-        details=f"Product {new_product.p_id} created"
-    )
+        image_url = None
+        if image and image.filename:
+            save_dir = BASE_DIR.parent / "frontend" / "products"
+            os.makedirs(save_dir, exist_ok=True)
+            filename = f"{new_pid}_{image.filename}"
+            full_path = save_dir / filename
+            with open(full_path, "wb") as f:
+                f.write(await image.read())
+            image_url = Path("products") / filename
+            image_url = str(image_url).replace("\\", "/")
 
-    with Session(engine) as session:
-        session.add_all([new_product,audit])
-        session.commit()
-        session.refresh(new_product)
 
-    return JSONResponse(content={"status": "success", "product_id": new_product.p_id})
+        category = "Uncategorized"
+        if model:
+            try:
+                category = model.predict([description])[0]
+            except Exception as e:
+                print(f"Prediction error: {e}")
 
+        new_product = Product(
+            p_id=new_pid,
+            name=name,
+            description=description,
+            price=price,
+            media=image_url,
+            stock=quantity,
+            category=category
+        )
+        audit = AuditLog(
+            entity="Product",
+            entity_id=new_product.p_id,
+            action="Create",
+            performed_by=current_user["id"],
+            details=f"Product {new_product.p_id} created"
+        )
+
+        with Session(engine) as session:
+            session.add_all([new_product, audit])
+            session.commit()
+            session.refresh(new_product)
+
+        return JSONResponse(content={"status": "success", "product_id": new_product.p_id,"category":category})
+
+    except Exception as e:
+        print(f"Add product error: {e}")
+        return JSONResponse(content={"status": "error", "message": str(e)})
 @app.get("/products")
 def get_products():
     with Session(engine) as session:
@@ -331,10 +350,16 @@ def get_products():
                 "description": prod.description,
                 "price": prod.price,
                 "media": prod.media,
-                "stock": prod.stock
+                "stock": prod.stock,
+                "category": prod.category,
             } for prod in products_list
         ]
         return JSONResponse(content={"status": "success", "products": products_data})
+    
+@app.get("/get_categories")
+def get_categories():
+    return {"status":"success","categories": [
+        "Electronics","Household","Books","Clothing & Accessories"]}
 @app.post("/checkout")
 def checkout(request: Request, data: dict = Body(...), current_user=Depends(get_current_user)):
     items = data.get("items", [])
