@@ -54,6 +54,11 @@
       <section class="text-center my-6 px-4">
         <h2 class="text-2xl font-bold mb-4">Featured Products</h2>
         <div class="flex flex-wrap justify-center items-center gap-2 max-w-md mx-auto">
+          <select id="category-select"
+          onchange="filterByCategory()"
+          class="px-4 py-2 rounded-full border border-gray-300 focus:outline-none text-sm">
+    <option value="">All Categories</option>
+  </select>
           <input id="search-input" type="text" placeholder="Search for products"
             class="flex-grow min-w-[200px] px-4 py-2 rounded-full border border-gray-300 focus:outline-none text-sm" />
           <button class="bg-[#31CC9D] p-3 rounded-full" onclick="searchProducts()">
@@ -219,95 +224,118 @@
     </form>
   </div>
 </div>
-  <script>
-     let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+<script>
+let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-    function saveCart() {
-      localStorage.setItem("cart", JSON.stringify(cart));
-      renderCartBar();
-    }
+function saveCart() {
+  localStorage.setItem("cart", JSON.stringify(cart));
+  renderCartBar();
+}
 
-    function addToCart(id,name,price,media) {
-      const i = cart.findIndex(x=>x.id===id);
-      if (i>=0) cart[i].qty++;
-      else cart.push({id,name,price,media,qty:1});
-      saveCart();
-    }
+function addToCart(id, name, price, media) {
+  const i = cart.findIndex(x => x.id === id);
+  if (i >= 0) cart[i].qty++;
+  else cart.push({ id, name, price, media, qty: 1 });
+  saveCart();
+}
 
-    function updateQty(idx,delta) {
-      cart[idx].qty += delta;
-      if (cart[idx].qty < 1) cart.splice(idx,1);
-      saveCart();
-      renderCartModal();
-    }
+function updateQty(idx, delta) {
+  cart[idx].qty += delta;
+  if (cart[idx].qty < 1) cart.splice(idx, 1);
+  saveCart();
+  renderCartModal();
+}
 
-    function removeFromCart(idx) {
-      cart.splice(idx,1);
-      saveCart();
-      renderCartModal();
-    }
+function removeFromCart(idx) {
+  cart.splice(idx, 1);
+  saveCart();
+  renderCartModal();
+}
 
-    function toggleCartModal(show) {
-      const modal = document.getElementById("cart-modal");
-      modal.classList.toggle("hidden", !show);
-      if (show) renderCartModal();
-    }
-
-    function renderCartBar() {
-      const bar = document.getElementById("cart-bar");
-      bar.innerHTML = "";
-      cart.forEach((item, idx) => {
-        const div = document.createElement("div");
-        div.className = "flex flex-col items-center";
-        div.innerHTML = `
-          <img src="${item.media}" class="w-12 h-12 object-cover rounded" />
-          <div class="text-xs">${item.qty}</div>
-          <div class="flex gap-1 mt-1">
-            <button onclick="updateQty(${idx},1)" class="text-green-600"><i class="fas fa-plus"></i></button>
-            <button onclick="removeFromCart(${idx})" class="text-red-600"><i class="fas fa-trash"></i></button>
-          </div>
-        `;
-        bar.appendChild(div);
+async function loadCategories() {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/get_categories");
+    const data = await res.json();
+    if (data.status === "success") {
+      const select = document.getElementById("category-select");
+      data.categories.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
       });
-      if (cart.length) {
-        const btn = document.createElement("button");
-        btn.className = "ml-auto bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700";
-        btn.innerText = "View Cart";
-        btn.onclick = () => toggleCartModal(true);
-        bar.appendChild(btn);
-      }
     }
+  } catch (err) {
+    console.error("Error loading categories", err);
+  }
+}
 
-    function renderCartModal() {
-      const details = document.getElementById("cart-details"),
-            totalSpan = document.getElementById("cart-total");
-      let total = 0;
-      details.innerHTML = "";
-      cart.forEach((item, idx) => {
-        total += item.price * item.qty;
-        const div = document.createElement("div");
-        div.className = "flex items-center justify-between border-b pb-2";
-        div.innerHTML = `
-          <div class="flex items-center gap-3">
-            <img src="${item.media}" class="w-12 h-12 object-cover rounded" />
-            <div>
-              <div class="font-semibold">${item.name}</div>
-              <div class="text-sm">Rs. ${item.price}</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="updateQty(${idx},-1)" class="bg-gray-200 px-2 rounded">-</button>
-            <span>${item.qty}</span>
-            <button onclick="updateQty(${idx},1)" class="bg-gray-200 px-2 rounded">+</button>
-            <button onclick="removeFromCart(${idx})" class="text-red-500"><i class="fas fa-trash"></i></button>
-          </div>
-        `;
-        details.appendChild(div);
-      });
-      totalSpan.innerText = total;
-       const modal = document.querySelector("#cart-modal .absolute");
+function filterByCategory() {
+  const selected = document.getElementById("category-select").value;
+  fetchAndDisplayProducts(selected ? `category=${selected}` : "");
+}
+
+function toggleCartModal(show) {
+  const modal = document.getElementById("cart-modal");
+  modal.classList.toggle("hidden", !show);
+  if (show) renderCartModal();
+}
+
+function renderCartBar() {
+  const bar = document.getElementById("cart-bar");
+  bar.innerHTML = "";
+  cart.forEach((item, idx) => {
+    const div = document.createElement("div");
+    div.className = "flex flex-col items-center";
+    div.innerHTML = `
+      <img src="${item.media}" class="w-12 h-12 object-cover rounded" />
+      <div class="text-xs">${item.qty}</div>
+      <div class="flex gap-1 mt-1">
+        <button onclick="updateQty(${idx},1)" class="text-green-600"><i class="fas fa-plus"></i></button>
+        <button onclick="removeFromCart(${idx})" class="text-red-600"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    bar.appendChild(div);
+  });
+  if (cart.length) {
+    const btn = document.createElement("button");
+    btn.className = "ml-auto bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700";
+    btn.innerText = "View Cart";
+    btn.onclick = () => toggleCartModal(true);
+    bar.appendChild(btn);
+  }
+}
+
+function renderCartModal() {
+  const details = document.getElementById("cart-details"),
+    totalSpan = document.getElementById("cart-total");
+  let total = 0;
+  details.innerHTML = "";
+  cart.forEach((item, idx) => {
+    total += item.price * item.qty;
+    const div = document.createElement("div");
+    div.className = "flex items-center justify-between border-b pb-2";
+    div.innerHTML = `
+      <div class="flex items-center gap-3">
+        <img src="${item.media}" class="w-12 h-12 object-cover rounded" />
+        <div>
+          <div class="font-semibold">${item.name}</div>
+          <div class="text-sm">Rs. ${item.price}</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="updateQty(${idx},-1)" class="bg-gray-200 px-2 rounded">-</button>
+        <span>${item.qty}</span>
+        <button onclick="updateQty(${idx},1)" class="bg-gray-200 px-2 rounded">+</button>
+        <button onclick="removeFromCart(${idx})" class="text-red-500"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+    details.appendChild(div);
+  });
+  totalSpan.innerText = total;
+
+  const modal = document.querySelector("#cart-modal .absolute");
   let buyBtn = document.getElementById("buy-button");
-
   if (!buyBtn) {
     buyBtn = document.createElement("button");
     buyBtn.id = "buy-button";
@@ -316,11 +344,10 @@
     buyBtn.onclick = handleBuyNow;
     modal.appendChild(buyBtn);
   }
-
   buyBtn.style.display = cart.length ? "block" : "none";
-    }
+}
 
-    function attachAddToCartListeners() {
+function attachAddToCartListeners() {
   document.querySelectorAll('#product-container button[title="Add to Cart"]').forEach(btn => {
     btn.onclick = () => {
       const card = btn.closest('div.bg-gray-100');
@@ -339,44 +366,48 @@ fetchAndDisplayProducts = async function (query = "") {
   attachAddToCartListeners();
 };
 
-    document.addEventListener("DOMContentLoaded", () => {
-      renderCartBar();
-    });
-    document.addEventListener("DOMContentLoaded", async () => {
-      const container = document.getElementById("navbar-container");
-      const res = await fetch("navbar.html");
-      const html = await res.text();
-      container.innerHTML = html;
-      
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      if (user.image) {
-        document.getElementById("profimg")?.setAttribute("src", user.image);
-        document.getElementById("profimg").setAttribute("title",user.type+":"+user.username)
-        if (user.type === "user") {
-          document.getElementById("dashboard")?.classList.add("hidden");
-          document.getElementById("newprod")?.classList.add("hidden");
-          document.getElementById("addadmin")?.classList.add("hidden");
-          document.getElementById("logs")?.classList.add("hidden");
-          document.getElementById("allorders")?.classList.add("hidden");
-        } else {
-          document.getElementById("orders")?.classList.add("hidden");
-        }
-      }
+document.addEventListener("DOMContentLoaded", () => {
+  renderCartBar();
+});
 
-      document.getElementById("protected-content").style.display = "block";
+document.addEventListener("DOMContentLoaded", async () => {
+  const container = document.getElementById("navbar-container");
+  const res = await fetch("navbar.html");
+  await loadCategories();
+  const html = await res.text();
+  container.innerHTML = html;
 
-      document.addEventListener("click", (e) => {
-        const button = document.getElementById("dropdownButton");
-        const menu = document.getElementById("dropdownMenu");
-        if (button && button.contains(e.target)) {
-          menu?.classList.toggle("hidden");
-        } else if (menu && !menu.contains(e.target)) {
-          menu.classList.add("hidden");
-        }
-      });
-      await fetchAndDisplayProducts();
-    });
-    async function fetchAndDisplayProducts(query = "") {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.image) {
+    document.getElementById("profimg")?.setAttribute("src", user.image);
+    document.getElementById("profimg")?.setAttribute("title", user.type + ":" + user.username);
+    if (user.type === "user") {
+      document.getElementById("dashboard")?.classList.add("hidden");
+      document.getElementById("newprod")?.classList.add("hidden");
+      document.getElementById("addadmin")?.classList.add("hidden");
+      document.getElementById("logs")?.classList.add("hidden");
+      document.getElementById("allorders")?.classList.add("hidden");
+    } else {
+      document.getElementById("orders")?.classList.add("hidden");
+    }
+  }
+
+  document.getElementById("protected-content").style.display = "block";
+
+  document.addEventListener("click", (e) => {
+    const button = document.getElementById("dropdownButton");
+    const menu = document.getElementById("dropdownMenu");
+    if (button && button.contains(e.target)) {
+      menu?.classList.toggle("hidden");
+    } else if (menu && !menu.contains(e.target)) {
+      menu.classList.add("hidden");
+    }
+  });
+
+  await fetchAndDisplayProducts();
+});
+
+async function fetchAndDisplayProducts(query = "") {
   try {
     const res = await fetch("http://127.0.0.1:8000/products");
     const data = await res.json();
@@ -384,164 +415,147 @@ fetchAndDisplayProducts = async function (query = "") {
     const container = document.getElementById("product-container");
     container.innerHTML = "";
 
-    const filtered = data.products.filter(p =>
+    let filtered = data.products.filter(p =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.description.toLowerCase().includes(query.toLowerCase())
     );
+
+    const selectedCategory = document.getElementById("category-select")?.value;
+    if (selectedCategory) {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
 
     if (filtered.length === 0) {
       container.innerHTML = `<p class="col-span-full text-center text-gray-600">No products found.</p>`;
       return;
     }
 
-  filtered.forEach(product => {
-  const card = document.createElement("div");
-  card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
-  card.setAttribute("data-pid", product.p_id);
-  card.setAttribute("data-name", product.name);
-  card.setAttribute("data-price", product.price);
-  card.setAttribute("data-media", product.media || "assets/default-product.png");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    filtered.forEach(product => {
+      const card = document.createElement("div");
+      card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
+      card.setAttribute("data-pid", product.p_id);
+      card.setAttribute("data-name", product.name);
+      card.setAttribute("data-price", product.price);
+      card.setAttribute("data-media", product.media || "assets/default-product.png");
 
-  const isAdmin = user?.type === "admin";
+      const isAdmin = user?.type === "admin";
 
-  card.innerHTML = `
-    <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded-md mb-3 overflow-hidden">
-      <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" onclick="showImageModal('${product.media}')" class="max-h-full max-w-full object-contain" />
-    </div>
-    <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
-      <h3 class="font-bold text-sm">${product.name}</h3>
-      <p class="text-xs">${product.description}</p>
-      <p class="text-sm mt-1">Rs. ${product.price}</p>
-       <p class="text-xs mt-1 text-yellow-300 font-semibold">
-      ${product.category || "Uncategorized"}
-    </p>
-      <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
-      ${!isAdmin ? `<button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
-        <i class="fa fa-shopping-cart text-white"></i>
-      </button>`: ""}
-      
-
-      ${isAdmin ? `
-  <div class="mt-2 flex justify-center gap-2">
-    <button onclick="editProduct('${product.p_id}')" class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 px-3 py-1 text-xs rounded-full text-white" title="Edit Product">
-      <i class="fas fa-edit"></i>
-    </button>
-    <button onclick="deleteProduct('${product.p_id}')" class="flex items-center gap-1 bg-red-500 hover:bg-red-600 px-3 py-1 text-xs rounded-full text-white" title="Delete Product">
-      <i class="fas fa-trash"></i>
-    </button>
-    <button onclick="updatestock('${product.p_id}')" class="flex items-center gap-1 bg-green-500 hover:bg-green-600 px-3 py-1 text-medium rounded-full text-white" title="Update Stock">
-      +/-
-    </button>
-  </div>
-` : ""}
-    </div>
-  `;
+      card.innerHTML = `
+        <div class="w-full h-40 bg-gray-200 flex items-center justify-center rounded-md mb-3 overflow-hidden">
+          <img src="${product.media || 'assets/default-product.png'}" alt="Product Image" onclick="showImageModal('${product.media}')" class="max-h-full max-w-full object-contain" />
+        </div>
+        <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+          <h3 class="font-bold text-sm">${product.name}</h3>
+          <p class="text-xs">${product.description}</p>
+          <p class="text-sm mt-1">Rs. ${product.price}</p>
+          <p class="text-xs mt-1 text-yellow-300 font-semibold">${product.category || "Uncategorized"}</p>
+          <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
+          ${!isAdmin ? `<button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
+            <i class="fa fa-shopping-cart text-white"></i>
+          </button>` : ""}
+          ${isAdmin ? `
+            <div class="mt-2 flex justify-center gap-2">
+              <button onclick="editProduct('${product.p_id}')" class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 px-3 py-1 text-xs rounded-full text-white" title="Edit Product">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button onclick="deleteProduct('${product.p_id}')" class="flex items-center gap-1 bg-red-500 hover:bg-red-600 px-3 py-1 text-xs rounded-full text-white" title="Delete Product">
+                <i class="fas fa-trash"></i>
+              </button>
+              <button onclick="updatestock('${product.p_id}')" class="flex items-center gap-1 bg-green-500 hover:bg-green-600 px-3 py-1 text-medium rounded-full text-white" title="Update Stock">
+                +/-
+              </button>
+            </div>` : ""}
+        </div>
+      `;
       container.appendChild(card);
     });
   } catch (err) {
     console.error("Error fetching products:", err);
   }
 }
-function showPaymentModal() {
-    document.getElementById('paymentModal').classList.remove('hidden');
-  }
 
-  function closePaymentModal() {
-    document.getElementById('paymentModal').classList.add('hidden');
-  }
-  function closestockModal(){
-    document.getElementById('stockModal').classList.add('hidden')
-  }
-  async function updatestock(pid){
-    try{
-      const response = await fetch('http://127.0.0.1:8000/get_stock',{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json'
-        },
-        body:JSON.stringify({ pid: pid }),
-        credentials:'include'
-      });
-      const result = await response.json();
-      if (result.status === "success"){
-        document.getElementById('stock_pid').value = pid
-        document.getElementById('currentstock').innerText = `Current stock : ${result.stock}`
-        document.getElementById('stockModal').classList.remove('hidden')
-      }else{
-         alert("Failed to fetch product stock: " + (result.detail || "Unknown error"));
-      }
-    }catch(err){
-      console.error("Error fetching product stock:", err);
-      alert("Something went wrong while fetching product stock.");
+async function updatestock(pid) {
+  try {
+    const response = await fetch('http://127.0.0.1:8000/get_stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pid }),
+      credentials: 'include'
+    });
+    const result = await response.json();
+    if (result.status === "success") {
+      document.getElementById('stock_pid').value = pid;
+      document.getElementById('currentstock').innerText = `Current stock: ${result.stock}`;
+      document.getElementById('stockModal').classList.remove('hidden');
+    } else {
+      alert("Failed to fetch product stock: " + (result.detail || "Unknown error"));
     }
+  } catch (err) {
+    console.error("Error fetching product stock:", err);
+    alert("Something went wrong while fetching product stock.");
   }
-async function deleteProduct(pid){
-    if (!confirm("Are you sure you want to delete this product?")) return;
-    try{
-      const response = await fetch('http://127.0.0.1:8000/delete_product',{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-        },
-        body:JSON.stringify({pid : pid}),
-        credentials:'include',
-      })
-      const result = await response.json();
-      if (result.status === 'success'){
-        alert('Product deleted successfully');
-        window.location.reload();
-      }else{
-        alert('Failed to delete product: ' + (result.detail || 'Unknown error'))
-      }
-    }catch(err){
-      alert('Error deleting product. Please try again')
-    }
 }
-  async function stockupdater(fixer){
-     const pid = document.getElementById('stock_pid').value
-     const stock = document.getElementById('edit_stock').value
-     try{
-      const response = await fetch('http://127.0.0.1:8000/edit_stock',{
-          method:'POST',
-          body:JSON.stringify( {pid:pid,stock:stock,fixer:fixer}),
-           headers:{
-          'Content-Type':'application/json'
-        },
-          credentials:'include',
-      })
-      const result = await response.json() 
-      if (result.status === 'success'){
-        alert(`${result.message}\nOldstock:${result.oldstock}\nUpdatedstock:${result.newstock}`)
-        document.getElementById('updatestockform').classList.add('hidden') 
-        window.location.reload()
-      }else{
-        alert("Failed to fetch product stock: " + (result.detail || "Unknown error"));
-      }
-     }catch(err){
-      console.error("Error updating product stock:", err);
-      alert("Something went wrong while updating  product stock.");
-     }
+
+async function deleteProduct(pid) {
+  if (!confirm("Are you sure you want to delete this product?")) return;
+  try {
+    const response = await fetch('http://127.0.0.1:8000/delete_product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pid }),
+      credentials: 'include'
+    });
+    const result = await response.json();
+    if (result.status === 'success') {
+      alert('Product deleted successfully');
+      window.location.reload();
+    } else {
+      alert('Failed to delete product: ' + (result.detail || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Error deleting product. Please try again');
   }
-  async function editProduct(pid) {
+}
+
+async function stockupdater(fixer) {
+  const pid = document.getElementById('stock_pid').value;
+  const stock = document.getElementById('edit_stock').value;
+  try {
+    const response = await fetch('http://127.0.0.1:8000/edit_stock', {
+      method: 'POST',
+      body: JSON.stringify({ pid, stock, fixer }),
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    const result = await response.json();
+    if (result.status === 'success') {
+      alert(`${result.message}\nOldstock: ${result.oldstock}\nUpdatedstock: ${result.newstock}`);
+      document.getElementById('updatestockform').classList.add('hidden');
+      window.location.reload();
+    } else {
+      alert("Failed to update product stock: " + (result.detail || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Error updating product stock:", err);
+    alert("Something went wrong while updating product stock.");
+  }
+}
+
+async function editProduct(pid) {
   try {
     const response = await fetch("http://127.0.0.1:8000/get_product", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ pid: pid }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pid }),
     });
-
     const result = await response.json();
-
     if (result.status === "success") {
       const product = result.product;
-
-      document.getElementById("edit_pid").value = pid; 
+      document.getElementById("edit_pid").value = pid;
       document.getElementById("edit_name").value = product.name;
       document.getElementById("edit_description").value = product.description;
       document.getElementById("edit_price").value = product.price;
-
       document.getElementById("editModal").classList.remove("hidden");
     } else {
       alert("Failed to fetch product: " + (result.detail || "Unknown error"));
@@ -550,134 +564,128 @@ async function deleteProduct(pid){
     console.error("Error fetching product:", err);
     alert("Something went wrong while fetching product.");
   }
-}  
-    async function updateproduct(){
-      const pid = document.getElementById("edit_pid").value;
-      const name = document.getElementById("edit_name").value;
-      const description = document.getElementById("edit_description").value;
-      const price = document.getElementById("edit_price").value; 
-      const media = document.getElementById("edit_media").files[0];
+}
 
-      const formData = new FormData();
-      formData.append("p_id", pid); 
-      formData.append("name", name); 
-      formData.append("description", description); 
-      formData.append("price", price); 
-      if (media) formData.append("media", media);
-      try{
-        const response = await fetch('http://127.0.0.1:8000/update_product',{
-          method:'POST',
-          body:formData,
-          credentials: "include" 
-        })
-        const result = await response.json();
-        if(result.status=== 'success'){
-          alert('Product updated successfully');
-          closeModal();
-          window.location.reload();
-        }else{
-          alert('Failed to update product: ' + (result.detail || 'Unknown error'));
-        }
-      }catch(err){
-        alert('Error updating product. Please try again');
-      }
-    }
-    function closeModal() {
-      document.getElementById('editModal').classList.add('hidden');
-    }
+async function updateproduct() {
+  const pid = document.getElementById("edit_pid").value;
+  const name = document.getElementById("edit_name").value;
+  const description = document.getElementById("edit_description").value;
+  const price = document.getElementById("edit_price").value;
+  const media = document.getElementById("edit_media").files[0];
 
-  async function selectPaymentMethod(method) {
-    closePaymentModal();
+  const formData = new FormData();
+  formData.append("p_id", pid);
+  formData.append("name", name);
+  formData.append("description", description);
+  formData.append("price", price);
+  if (media) formData.append("media", media);
 
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const payload = {
-        items: cart,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        payment_method: method
-      };
-
-      const response = await fetch("http://127.0.0.1:8000/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (method === "esewa" && result.esewa_pid) {
-        const orderId = result.esewa_pid;
-        const total = cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
-
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = "https://uat.esewa.com.np/epay/main";
-
-        const fields = {
-          amt: total,
-          psc: 0,
-          pdc: 0,
-          txAmt: 0,
-          tAmt: total,
-          pid: orderId,
-          scd: "EPAYTEST",
-          su: `http://127.0.0.1:8000/esewa_success`, // Replacable with ngrok URL
-          fu: `http://127.0.0.1:8000/esewa_failure`
-        };
-        fields.tAmt = fields.amt + fields.psc + fields.pdc + fields.txAmt;
-        for (const key in fields) {
-          const input = document.createElement("input");
-          input.type = "hidden";
-          input.name = key;
-          input.value = fields[key];
-          form.appendChild(input);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
-      } else if (method === "cod" && !result.detail) {
-        alert("Order placed with Cash on Delivery.");
-        localStorage.removeItem("cart");
-        window.location.reload();
-      } else {
-        alert(`Error -> ${result.detail} `);
-      }
+  try {
+    const response = await fetch('http://127.0.0.1:8000/update_product', {
+      method: 'POST',
+      body: formData,
+      credentials: "include"
     });
+    const result = await response.json();
+    if (result.status === 'success') {
+      alert('Product updated successfully');
+      closeModal();
+      window.location.reload();
+    } else {
+      alert('Failed to update product: ' + (result.detail || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Error updating product. Please try again');
   }
-  function searchProducts() {
-      const query = document.getElementById("search-input").value;
-      fetchAndDisplayProducts(query);
-    }
+}
 
-    async function logout() {
-      try {
-        const res = await fetch("http://127.0.0.1:8000/logout", {
-          method: "POST",
-          credentials: "include"
-        });
-        const result = await res.json();
-        if (result.status === "success") {
-          localStorage.removeItem("user");
-          location.replace("index.html");
-        } else {
-          alert("Logout failed. Try again.");
-        }
-      } catch (err) {
-        console.error("Logout error:", err);
-        alert("Error logging out.");
+function closeModal() {
+  document.getElementById('editModal').classList.add('hidden');
+}
+
+async function selectPaymentMethod(method) {
+  closePaymentModal();
+  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const payload = {
+      items: cart,
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      payment_method: method
+    };
+    const response = await fetch("http://127.0.0.1:8000/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (method === "esewa" && result.esewa_pid) {
+      const orderId = result.esewa_pid;
+      const total = cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://uat.esewa.com.np/epay/main";
+      const fields = {
+        amt: total,
+        psc: 0,
+        pdc: 0,
+        txAmt: 0,
+        tAmt: total,
+        pid: orderId,
+        scd: "EPAYTEST",
+        su: `http://127.0.0.1:8000/esewa_success`,
+        fu: `http://127.0.0.1:8000/esewa_failure`
+      };
+      fields.tAmt = fields.amt + fields.psc + fields.pdc + fields.txAmt;
+      for (const key in fields) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = fields[key];
+        form.appendChild(input);
       }
+      document.body.appendChild(form);
+      form.submit();
+    } else if (method === "cod" && !result.detail) {
+      alert("Order placed with Cash on Delivery.");
+      localStorage.removeItem("cart");
+      window.location.reload();
+    } else {
+      alert(`Error -> ${result.detail}`);
     }
-    function showImageModal(src) {
+  });
+}
+
+function searchProducts() {
+  const query = document.getElementById("search-input").value;
+  fetchAndDisplayProducts(query);
+}
+
+async function logout() {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/logout", {
+      method: "POST",
+      credentials: "include"
+    });
+    const result = await res.json();
+    if (result.status === "success") {
+      localStorage.removeItem("user");
+      location.replace("index.html");
+    } else {
+      alert("Logout failed. Try again.");
+    }
+  } catch (err) {
+    console.error("Logout error:", err);
+    alert("Error logging out.");
+  }
+}
+
+function showImageModal(src) {
   const modal = document.getElementById("image-modal");
   const modalImg = document.getElementById("modal-image");
   modalImg.src = src;
@@ -687,6 +695,7 @@ async function deleteProduct(pid){
 function hideImageModal() {
   document.getElementById("image-modal").classList.add("hidden");
 }
-  </script>
+</script>
+
 </body>
 </html>

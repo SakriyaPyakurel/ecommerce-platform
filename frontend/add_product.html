@@ -238,18 +238,24 @@
         credentials: "include",
         body: formData,
       });
-
-      const data = await res.json();
-
-      if (data.status === "success") {
-        alert("Product added successfully!");
-        form.reset();
-      } else {
-        alert("Error: " + data.message);
-      }
+      let data;
+    try {
+        data = await res.json(); 
     } catch {
-      alert("Unexpected error occurred.");
-    } finally {
+        throw new Error("Server did not return JSON");
+    }
+
+    if (data.status && data.status.trim() === "success") {
+        alert(`Product added successfully! Category: ${data.category}`);
+        form.reset();
+    } else {
+        alert("Error: " + (data.message || "Unknown error"));
+    }
+} catch (err) {
+    console.error("Add product failed:", err);
+    alert("Unexpected error occurred: " + err.message);
+}
+      finally {
       submitBtn.disabled = false;
     }
   }
