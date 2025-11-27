@@ -8,6 +8,9 @@ backend/venv/
 
 backend/alembic/
 alembic.ini
+backend/product_classification_model.pkl
+backend/ecommerceDataset.csv
+
 
 frontend/products/*
 frontend/userprofiles/*
