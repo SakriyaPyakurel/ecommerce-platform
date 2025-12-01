@@ -12,7 +12,7 @@ from itsdangerous import URLSafeSerializer, BadSignature
 from sqlmodel import create_engine, Session, select
 from input_params import credentials
 import uuid
-from models import Users, Admin , Product , Order, OrderItem, CancelledOrder,CancelledOrderItem,AuditLog
+from models import Users, Admin , Product , Order, OrderItem, CancelledOrder,CancelledOrderItem,AuditLog,review
 from pathlib import Path
 from datetime import datetime,timezone
 from keyword_extractor import KeywordExtractor
@@ -342,9 +342,11 @@ def get_products():
         products_list = session.exec(select(Product)).all()
         if not products_list:
             return JSONResponse(content={"status": "error", "message": "No products found"}, status_code=404)
-
-        products_data = [
-            {
+        products_data = []
+        for prod in products_list:
+            reviews = session.exec(select(review).where(review.product_id == prod.p_id)).all()
+            avg_rating = sum(r.rating for r in reviews) / len(reviews) if reviews else 0
+            products_data.append({
                 "p_id": prod.p_id,
                 "name": prod.name,
                 "description": prod.description,
@@ -352,8 +354,9 @@ def get_products():
                 "media": prod.media,
                 "stock": prod.stock,
                 "category": prod.category,
-            } for prod in products_list
-        ]
+                "average_rating": avg_rating,
+            })
+        products_data.sort(key=lambda x: x['average_rating'], reverse=True)
         return JSONResponse(content={"status": "success", "products": products_data})
     
 @app.get("/get_categories")

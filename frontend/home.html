@@ -208,7 +208,7 @@
       </div>
 
       <div class="flex justify-end gap-3">
-        <button type="button" onclick="closestockModal()" 
+        <button type="button" onclick="closeStockModal()" 
                 class="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400">
           Cancel
         </button>
@@ -264,6 +264,8 @@ async function loadCategories() {
         opt.textContent = cat;
         select.appendChild(opt);
       });
+       document.getElementById("category-select")
+        ?.addEventListener("change", () => fetchAndDisplayProducts());
     }
   } catch (err) {
     console.error("Error loading categories", err);
@@ -453,7 +455,10 @@ async function fetchAndDisplayProducts(query = "") {
           <p class="text-xs text-gray-200">Stock: ${product.stock}</p>
           ${!isAdmin ? `<button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full" title="Add to Cart">
             <i class="fa fa-shopping-cart text-white"></i>
-          </button>` : ""}
+          </button><button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full"
+          title="Review Product - Avg Rating: ${product.average_rating ? product.average_rating.toFixed(1) : 0}/5">
+    <i class="fa-solid fa-star" style="color: #FFD43B;"></i>
+  </button>` : ""}
           ${isAdmin ? `
             <div class="mt-2 flex justify-center gap-2">
               <button onclick="editProduct('${product.p_id}')" class="flex items-center gap-1 bg-blue-500 hover:bg-blue-600 px-3 py-1 text-xs rounded-full text-white" title="Edit Product">
@@ -690,6 +695,10 @@ function showImageModal(src) {
   const modalImg = document.getElementById("modal-image");
   modalImg.src = src;
   modal.classList.remove("hidden");
+}
+
+function closeStockModal() {
+  document.getElementById("stockModal").classList.add("hidden");
 }
 
 function hideImageModal() {
