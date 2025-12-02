@@ -47,54 +47,16 @@
   </div>
 
 </section>
-
-  <main class="flex-grow">
+<main class="flex-grow">
 <section class="text-center my-10 px-4">
   <h2 class="text-2xl font-bold mb-6">Our Products</h2>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-
-    <div class="bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow">
-      <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
-        <i class="fa-regular fa-image text-3xl text-gray-400"></i>
-      </div>
-      <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
-        <h3 class="font-bold text-sm">Product 1</h3>
-        <p class="text-xs font-normal">Short description</p>
-        <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white">
-          <i class="fa fa-shopping-cart text-white"></i>
-        </button>
-      </div>
-    </div>
-
-    <div class="bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow">
-      <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
-        <i class="fa-regular fa-image text-3xl text-gray-400"></i>
-      </div>
-      <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
-        <h3 class="font-bold text-sm">Product 2</h3>
-        <p class="text-xs font-normal">Short description</p>
-        <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white">
-          <i class="fa fa-shopping-cart text-white"></i>
-        </button>
-      </div>
-    </div>
-
-    <div class="bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow">
-      <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
-        <i class="fa-regular fa-image text-3xl text-gray-400"></i>
-      </div>
-      <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
-        <h3 class="font-bold text-sm">Product 3</h3>
-        <p class="text-xs font-normal">Short description</p>
-        <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white">
-          <i class="fa fa-shopping-cart text-white"></i>
-        </button>
-      </div>
-    </div>
+  <div id="productGrid"
+       class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
   </div>
 </section>
 </main>
+
 <footer class="bg-[#5861E6] text-white py-6">
       <div class="flex flex-col items-center justify-center space-y-4 px-4 text-center">
         <div class="flex space-x-4 text-xl">
@@ -115,6 +77,50 @@
     </footer>
 
 </div>
+<script>
+async function loadProducts() {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/products");
+    const data = await res.json();
 
+    const grid = document.getElementById("productGrid");
+    grid.innerHTML = "";
+
+    if (!data.products || !data.products.length) {
+      grid.innerHTML = "<p class='text-gray-500'>No products available.</p>";
+      return;
+    }
+
+    data.products.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "bg-gray-100 rounded-2xl p-4 flex flex-col items-center shadow";
+
+      card.innerHTML = `
+        <div class="w-24 h-24 flex items-center justify-center bg-gray-200 rounded-md mb-3">
+          <img src="${p.media || 'https://via.placeholder.com/100'}"
+               class="w-full h-full rounded-md object-cover">
+        </div>
+
+        <div class="bg-[#5861E6] w-full text-white p-2 rounded-b-2xl text-center">
+          <h3 class="font-bold text-sm">${p.name}</h3>
+          <p class="text-xs font-normal">${p.description || "No description"}</p>
+
+          <button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] px-3 py-1 rounded-full text-white" title="Login to purchase" onclick="window.location.href='login.html'">
+            <i class="fa fa-shopping-cart text-white"></i>
+          </button>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error("Failed to load products", error);
+  }
+}
+
+loadProducts();
+
+</script>
 </body>
 </html>
