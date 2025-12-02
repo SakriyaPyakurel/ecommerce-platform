@@ -190,6 +190,43 @@
     </form>
   </div>
 </div>
+<div id="reviewModal" 
+     class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  
+  <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6 relative">
+
+    <h2 class="text-xl font-semibold mb-4">Review Product</h2>
+    
+    <form id="ReviewProductForm" class="space-y-4">
+      <input type="hidden" id="rev_pid" name="pid" />
+
+    <div>
+        <label class="block text-sm font-medium text-gray-700">Rating (1–5)</label>
+        <input type="number" id="rev_rating" name="rating" min="1" max="5"
+               class="mt-1 block w-full border rounded-md p-2" required />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Your Review</label>
+        <textarea id="review_text" name="review"
+                  class="mt-1 block w-full border rounded-md p-2"
+                  rows="3"
+                  placeholder="Write your experience..."></textarea>
+      </div>
+
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="closeReviewModal()" 
+                class="px-4 py-2 rounded-md bg-gray-300 hover:bg-gray-400">
+          Cancel
+        </button>
+        <button type="button" onclick="submitReview()" 
+                class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+          Publish Review
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 <div id="stockModal" 
      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
   
@@ -457,7 +494,7 @@ async function fetchAndDisplayProducts(query = "") {
             <i class="fa fa-shopping-cart text-white"></i>
           </button><button class="mt-2 bg-[#31CC9D] hover:bg-[#29b78b] p-2 rounded-full"
           title="Review Product - Avg Rating: ${product.average_rating ? product.average_rating.toFixed(1) : 0}/5">
-    <i class="fa-solid fa-star" style="color: #FFD43B;"></i>
+    <i class="fa-solid fa-star" onclick="openReviewModal('${product.p_id}')" style="color: #FFD43B;"></i>
   </button>` : ""}
           ${isAdmin ? `
             <div class="mt-2 flex justify-center gap-2">
@@ -690,11 +727,114 @@ async function logout() {
   }
 }
 
+function openReviewModal(pid) {
+  document.getElementById("rev_pid").value = pid;
+  document.getElementById("reviewModal").classList.remove("hidden");
+
+  loadMyReview(pid);
+}
+
+function closeReviewModal() {
+  document.getElementById("reviewModal").classList.add("hidden");
+  window.location.reload();
+}
+
+
+async function loadMyReview(pid) {
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/my_review/${pid}`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (data.status === "found") {
+      document.getElementById("rev_rating").value = data.review.rating;
+      document.getElementById("review_text").value = data.review.comment;
+    } else {
+      document.getElementById("rev_rating").value = "";
+      document.getElementById("review_text").value = "";
+    }
+
+  } catch (err) {
+    console.error("Error loading review:", err);
+  }
+}
+
+async function submitReview() {
+  const pid = document.getElementById("rev_pid").value;
+  const rating = document.getElementById("rev_rating").value;
+  const text = document.getElementById("review_text").value;
+
+  const formData = new FormData();
+  formData.append("product_id", pid);
+  formData.append("rating", rating);
+  formData.append("text", text);
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/review", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    alert(data.message); 
+
+    closeReviewModal();
+
+  
+    loadReviews(pid);
+
+  } catch (err) {
+    console.error("Error submitting review:", err);
+    alert("Failed to submit review.");
+  }
+}
+
+
+async function loadReviews(pid) {
+  const container = document.getElementById("reviews_" + pid);
+  if (!container) return;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/reviews/${pid}`, {
+      method: "GET"
+    });
+
+    const data = await res.json();
+
+    container.innerHTML = "";
+
+    data.reviews.forEach(r => {
+      container.innerHTML += `
+        <div class="border p-3 rounded-lg bg-gray-50 mb-2">
+          <div class="font-semibold">${r.user.username}</div>
+          <div class="text-yellow-500">${r.rating}</div>
+          <div class="text-sm">${r.comment}</div>
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error("Error loading reviews:", err);
+  }
+}
+
 function showImageModal(src) {
   const modal = document.getElementById("image-modal");
   const modalImg = document.getElementById("modal-image");
   modalImg.src = src;
   modal.classList.remove("hidden");
+}
+
+function showPaymentModal() {
+  document.getElementById("paymentModal").classList.remove("hidden");
+}
+function closePaymentModal() {
+  document.getElementById("paymentModal").classList.add("hidden");
 }
 
 function closeStockModal() {

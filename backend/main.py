@@ -828,7 +828,69 @@ def mark_delivered(data: dict = Body(...), current_user=Depends(get_current_user
         session.commit()
 
         return {"status": "success", "message": "Order marked as delivered"}
+    
+@app.post("/review", status_code=200)
+def create_or_update_review(
+    user=Depends(get_current_user),
+    product_id: int = Form(...),
+    rating: int = Form(...),
+    text: str = Form("")
+):
+    with Session(engine) as session:
+        old_review = session.exec(
+            select(review)
+            .where(review.user_id == user["id"], review.product_id == product_id)
+        ).first()
 
+        if old_review:
+            old_review.rating = rating
+            old_review.comment = text
+            old_review.review_date_time = datetime.now(timezone.utc)
+
+            session.add(old_review)
+            session.commit()
+            session.refresh(old_review)
+
+            return {"status": "updated", "message": "Review updated successfully"}
+
+        new_review = review(
+            user_id=user["id"],
+            product_id=product_id,
+            rating=rating,
+            comment=text
+        )
+
+        session.add(new_review)
+        session.commit()
+        session.refresh(new_review)
+
+        return {"status": "created", "message": "Review added successfully"}
+    
+@app.get("/my_review/{product_id}", status_code=200)
+def get_my_review(
+    product_id: int,
+    user=Depends(get_current_user)
+):
+    with Session(engine) as session:
+        my_review = session.exec(
+            select(review).where(
+                review.product_id == product_id,
+                review.user_id == user["id"]
+            )
+        ).first()
+
+        if not my_review:
+            return {"status": "none", "review": None}
+
+        return {
+            "status": "found",
+            "review": {
+                "review_id": my_review.r_id,
+                "rating": my_review.rating,
+                "comment": my_review.comment,
+                "created_at": my_review.review_date_time
+            }
+        }
 
 @app.post("/esewa_success")
 async def esewa_success(request: Request):
