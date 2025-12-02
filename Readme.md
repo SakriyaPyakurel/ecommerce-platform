@@ -44,35 +44,37 @@ User Side 🙋
 
 🛠 <b>Tech Stack</b>
 
-<b>Layers</b>	           <b>Technologies</b>
-Backend	                   FastAPI, SQLModel, MySQL
-Frontend	               HTML, CSS, Tailwind, JavaScript
-Authentication	           Cookie-based authentication
-Payment Gateway	           eSewa (test environment)
-Storage	                   LocalStorage for cart
+| **Layers**          | **Technologies**                    |
+| ------------------- | ----------------------------------- |
+| **Backend**         | FastAPI, SQLModel, MySQL            |
+| **Frontend**        | HTML, CSS, Tailwind, JavaScript     |
+| **Authentication**  | Cookie-based authentication         |
+| **Payment Gateway** | eSewa (test environment)            |
+| **Storage**         | LocalStorage (for cart persistence) |
+
 
 ⚙️ </b>Setup</b>
 
 1. Clone the repo 
 
--> git clone https://github.com/SakriyaPyakurel/ecommerce-platform.git
+-> git clone https://github.com/SakriyaPyakurel/ecommerce-platform.git<br>
 -> cd ecommerce-platform
 
 2. Create and activate virtual environment(inside backend after removing old venv)
 
--> python -m venv venv
--> source venv/bin/activate
+-> python -m venv venv<br>
+-> source venv/bin/activate<br>
 -> venv\Scripts\activate
 
 3. Installation of dependencies
 
--> pip install -r requirements.txt
+-> pip install -r requirements.txt<br>
 
 4. Alembic(data-migration setup inside backend) 
 
--> alembic init alembic
--> alembic revision --autogenerate -m "describe change"
--> alembic upgrade head
--> alembic downgrade -1 (optional: for rollback)
+-> alembic init alembic<br>
+-> alembic revision --autogenerate -m "describe change"<br>
+-> alembic upgrade head<br>
+-> alembic downgrade -1 (optional: for rollback)<br>
 
 
