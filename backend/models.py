@@ -14,7 +14,7 @@ class Admin(SQLModel, table=True):
     username: str
     email: str
     password: str
-    image: Optional[str] = Field(default="assets/defaultuser.png")
+    image: Optional[str] = Field(default="assets/default_admin.png")
 
 class Product(SQLModel, table=True):
     p_id: int = Field(primary_key=True)
@@ -27,7 +27,7 @@ class Product(SQLModel, table=True):
 
 class Order(SQLModel, table=True):
     o_id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.u_id")  # note: "user" not "users"
+    user_id: int = Field(foreign_key="users.u_id")  
     status: str = Field(default="Pending")
     order_date_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     total_amount: float
